@@ -3380,21 +3380,38 @@ function saveCustomMonsters() {
 
 // ── pf2etools data mapping ──
 // pf2etools bestiary JSON lives on GitHub: https://github.com/TheGiddyLimit/Pf2eTools/tree/master/data/bestiary
-// Each file is a bestiary source (e.g. bestiary-crb.json, bestiary-b1.json, etc.)
-const PF2E_SOURCES = [
-  { key: 'bestiary-crb',  label: 'Core Rulebook'         },
-  { key: 'bestiary-b1',   label: 'Bestiary 1'            },
-  { key: 'bestiary-b2',   label: 'Bestiary 2'            },
-  { key: 'bestiary-b3',   label: 'Bestiary 3'            },
-  { key: 'bestiary-aoe1', label: 'Age of Ashes'          },
-  { key: 'bestiary-ec1',  label: 'Extinction Curse'      },
-  { key: 'bestiary-tv',   label: 'Troubles in Otari'     },
-  { key: 'bestiary-loag', label: 'Lost Omens: Ancestry'  },
-  { key: 'bestiary-som',  label: 'Secrets of Magic'      },
-  { key: 'bestiary-apg',  label: 'Advanced Players Guide'},
-];
+// pf2etools data via jsDelivr CDN (CORS-friendly mirror of GitHub)
+const PF2E_BASE     = 'https://cdn.jsdelivr.net/gh/TheGiddyLimit/Pf2eTools@master/data/bestiary/';
+const PF2E_API_BASE = 'https://api.github.com/repos/TheGiddyLimit/Pf2eTools/contents/data/bestiary';
 
-const PF2E_BASE = 'https://cdn.jsdelivr.net/gh/TheGiddyLimit/Pf2eTools@master/data/bestiary/';
+// Fallback hardcoded list in case the GitHub API is rate-limited
+const PF2E_FALLBACK_FILES = [
+  'bestiary.json',
+  'bestiary-b1.json',
+  'bestiary-b2.json',
+  'bestiary-b3.json',
+  'bestiary-crb.json',
+  'bestiary-gmg.json',
+  'bestiary-apg.json',
+  'bestiary-som.json',
+  'bestiary-g&g.json',
+  'bestiary-aoe1.json',
+  'bestiary-aoe2.json',
+  'bestiary-aoe3.json',
+  'bestiary-aoe4.json',
+  'bestiary-aoe5.json',
+  'bestiary-aoe6.json',
+  'bestiary-ec1.json',
+  'bestiary-ec2.json',
+  'bestiary-ec3.json',
+  'bestiary-ec4.json',
+  'bestiary-ec5.json',
+  'bestiary-ec6.json',
+  'bestiary-tv.json',
+  'bestiary-loag.json',
+  'bestiary-locg.json',
+  'bestiary-lotgb.json',
+];
 
 function parseSave(saveObj) {
   if (!saveObj) return 0;
@@ -3499,30 +3516,43 @@ function parseSpecial(creature) {
 }
 
 function mapPf2eCreature(raw, sourceName) {
+  if (!raw || !raw.name) throw new Error('invalid creature');
   const saves = raw.savingThrows || raw.saves || {};
-  const hp = parseHP(raw.hp);
+  const hp    = parseHP(raw.hp);
   const level = parseInt(raw.level) || 0;
   const traits = parseTraits(raw);
-  const typeStr = traits.filter(t => !['Tiny','Small','Medium','Large','Huge','Gargantuan'].includes(t)).join(', ') || 'Creature';
+  const sizeWords = ['Tiny','Small','Medium','Large','Huge','Gargantuan'];
+  const typeStr = traits.filter(t => !sizeWords.includes(t)).join(', ') || 'Creature';
+
+  // Perception — pf2etools stores it various ways
+  let perc = 0;
+  if (typeof raw.perception === 'number') perc = raw.perception;
+  else if (raw.perception && typeof raw.perception === 'object') perc = raw.perception.std || raw.perception.value || 0;
+  else if (typeof raw.perception === 'string') perc = parseInt(raw.perception) || 0;
+
+  // AC
+  let ac = 10;
+  if (typeof raw.ac === 'number') ac = raw.ac;
+  else if (raw.ac && typeof raw.ac === 'object') ac = raw.ac.std || raw.ac.value || raw.ac.ac || 10;
 
   return {
-    name: raw.name,
+    name:    raw.name,
     level,
-    type: typeStr,
+    type:    typeStr,
     traits,
-    ac: typeof raw.ac === 'object' ? (raw.ac.std || raw.ac.value || 10) : (parseInt(raw.ac) || 10),
+    ac,
     hp,
-    init: parseInt(raw.perception) || 0,   // PF2e initiative = Perception by default
-    perc: parseInt(raw.perception) || 0,
-    fort: parseSave(saves.fort || saves.fortitude),
-    ref:  parseSave(saves.ref  || saves.reflex),
-    will: parseSave(saves.will),
-    speed: parseSpeed(raw.speed),
+    init:    perc,
+    perc,
+    fort:    parseSave(saves.fort  || saves.fortitude || saves.f),
+    ref:     parseSave(saves.ref   || saves.reflex    || saves.r),
+    will:    parseSave(saves.will  || saves.w),
+    speed:   parseSpeed(raw.speed),
     actions: parseActions(raw),
     special: parseSpecial(raw),
-    imm: '',
-    _src: 'pf2e',
-    _book: sourceName
+    imm:     '',
+    _src:    'pf2e',
+    _book:   sourceName
   };
 }
 
@@ -3530,51 +3560,83 @@ async function loadPF2eData() {
   if (pf2eLoaded || pf2eLoading) return;
   pf2eLoading = true;
 
-  const bar = document.getElementById('pf2e-load-bar');
-  const msg = document.getElementById('pf2e-load-msg');
+  const bar  = document.getElementById('pf2e-load-bar');
+  const msg  = document.getElementById('pf2e-load-msg');
   const prog = document.getElementById('pf2e-load-prog');
   if (bar) bar.style.display = '';
+  if (msg) msg.textContent = 'Discovering bestiary files…';
+
+  // Step 1: get the real list of JSON files from GitHub API
+  let filesToLoad = [];
+  try {
+    const dirResp = await fetch(PF2E_API_BASE);
+    if (dirResp.ok) {
+      const dirData = await dirResp.json();
+      filesToLoad = dirData
+        .filter(f => f.name.endsWith('.json') && f.name.startsWith('bestiary'))
+        .map(f => f.name);
+    }
+  } catch(e) {}
+
+  // Fall back to hardcoded list if API failed or was rate-limited
+  if (filesToLoad.length === 0) {
+    filesToLoad = PF2E_FALLBACK_FILES;
+  }
+
+  if (msg) msg.textContent = `Loading ${filesToLoad.length} bestiary files…`;
 
   let loaded = 0;
   const results = [];
 
-  for (const src of PF2E_SOURCES) {
+  for (const filename of filesToLoad) {
     try {
-      if (msg) msg.textContent = `Loading ${src.label}…`;
-      const url = PF2E_BASE + src.key + '.json';
+      if (msg) msg.textContent = `Loading ${filename}…`;
+      const url = PF2E_BASE + filename;
       const resp = await fetch(url);
-      if (!resp.ok) { loaded++; continue; }
+      if (!resp.ok) { loaded++; if (prog) prog.style.width = Math.round((loaded/filesToLoad.length)*100)+'%'; continue; }
       const data = await resp.json();
-      const creatures = data.monster || data.creature || [];
+
+      // pf2etools stores creatures under different keys depending on version
+      const creatures = data.monster || data.creature || data.npc || [];
+      const label = filename.replace('bestiary-','').replace('.json','').toUpperCase();
       creatures.forEach(raw => {
-        try { results.push(mapPf2eCreature(raw, src.label)); } catch(e) {}
+        try { results.push(mapPf2eCreature(raw, label)); } catch(e) {}
       });
     } catch(e) {
-      // Source unavailable (CORS or network) — skip silently
+      // skip files that fail
     }
     loaded++;
-    if (prog) prog.style.width = Math.round((loaded / PF2E_SOURCES.length) * 100) + '%';
+    if (prog) prog.style.width = Math.round((loaded / filesToLoad.length) * 100) + '%';
   }
 
   pf2eMonsters = results;
-  pf2eLoaded = true;
-  pf2eLoading = false;
+  pf2eLoaded   = true;
+  pf2eLoading  = false;
   if (bar) bar.style.display = 'none';
 
   const count = pf2eMonsters.length;
   if (count > 0) {
-    toast(`PF2e data loaded: ${count} creatures`);
+    toast(`PF2e bestiary loaded: ${count} creatures`);
+    renderBestiaryList();
   } else {
-    toast('PF2e data unavailable — internet required. OGL compendium still available.');
-    // Show a persistent note in the list
+    pf2eLoaded = false; // allow retry
     const list = document.getElementById('bestiary-list');
-    if (list) list.innerHTML = `<div style="padding:14px;color:var(--text-dim);font-size:13px;border:1px solid var(--border);background:var(--bg3)">
-      <div style="color:var(--amber);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;margin-bottom:6px">INTERNET REQUIRED</div>
-      PF2e full data is fetched from pf2etools on GitHub. Make sure Samwise is running via a local server (not opened as a file://) or is hosted online.
-      <div style="margin-top:8px">The OGL Compendium and My Monsters tabs work offline.</div>
-    </div>`;
+    if (list) list.innerHTML = `
+      <div style="padding:14px;color:var(--text-dim);font-size:13px;border:1px solid var(--border);background:var(--bg3)">
+        <div style="color:var(--amber);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;margin-bottom:8px">⚠ COULD NOT LOAD PF2e DATA</div>
+        <div style="margin-bottom:8px">This usually means one of two things:</div>
+        <div style="margin-bottom:4px">1. <strong style="color:var(--text)">Running as a local file</strong> — open Samwise via <code style="color:var(--gold)">python3 -m http.server 8000</code> or upload to GitHub Pages.</div>
+        <div style="margin-bottom:12px">2. <strong style="color:var(--text)">pf2etools repository moved</strong> — the source files may have been renamed.</div>
+        <button class="btn btn-blue" onclick="retryPF2eLoad(this)" style="padding:5px 14px;font-size:11px">↺ RETRY</button>
+      </div>`;
   }
-  renderBestiaryList();
+}
+
+function retryPF2eLoad(btn) {
+  pf2eLoading = false;
+  pf2eLoaded  = false;
+  pf2eMonsters = [];
+  loadPF2eData();
 }
 
 function setBestiarySource(src, btn) {
