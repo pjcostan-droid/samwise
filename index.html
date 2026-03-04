@@ -3380,37 +3380,41 @@ function saveCustomMonsters() {
 
 // ── pf2etools data mapping ──
 // pf2etools bestiary JSON lives on GitHub: https://github.com/TheGiddyLimit/Pf2eTools/tree/master/data/bestiary
-// pf2etools data via jsDelivr CDN (CORS-friendly mirror of GitHub)
-const PF2E_BASE     = 'https://cdn.jsdelivr.net/gh/TheGiddyLimit/Pf2eTools@master/data/bestiary/';
-const PF2E_API_BASE = 'https://api.github.com/repos/TheGiddyLimit/Pf2eTools/contents/data/bestiary';
+// pf2etools data — repo moved to Pf2eToolsOrg, files renamed to creatures-*.json
+const PF2E_BASE     = 'https://cdn.jsdelivr.net/gh/Pf2eToolsOrg/Pf2eTools@master/data/bestiary/';
+const PF2E_API_BASE = 'https://api.github.com/repos/Pf2eToolsOrg/Pf2eTools/contents/data/bestiary';
 
-// Fallback hardcoded list in case the GitHub API is rate-limited
+// Confirmed filenames from Pf2eToolsOrg/Pf2eTools repo (creatures-*.json naming convention)
 const PF2E_FALLBACK_FILES = [
-  'bestiary.json',
-  'bestiary-b1.json',
-  'bestiary-b2.json',
-  'bestiary-b3.json',
-  'bestiary-crb.json',
-  'bestiary-gmg.json',
-  'bestiary-apg.json',
-  'bestiary-som.json',
-  'bestiary-g&g.json',
-  'bestiary-aoe1.json',
-  'bestiary-aoe2.json',
-  'bestiary-aoe3.json',
-  'bestiary-aoe4.json',
-  'bestiary-aoe5.json',
-  'bestiary-aoe6.json',
-  'bestiary-ec1.json',
-  'bestiary-ec2.json',
-  'bestiary-ec3.json',
-  'bestiary-ec4.json',
-  'bestiary-ec5.json',
-  'bestiary-ec6.json',
-  'bestiary-tv.json',
-  'bestiary-loag.json',
-  'bestiary-locg.json',
-  'bestiary-lotgb.json',
+  'creatures-b1.json',
+  'creatures-b2.json',
+  'creatures-b3.json',
+  'creatures-crb.json',
+  'creatures-gmg.json',
+  'creatures-apg.json',
+  'creatures-som.json',
+  'creatures-tio.json',
+  'creatures-loag.json',
+  'creatures-locg.json',
+  'creatures-aoa1.json',
+  'creatures-aoa2.json',
+  'creatures-aoa3.json',
+  'creatures-aoa4.json',
+  'creatures-aoa5.json',
+  'creatures-aoa6.json',
+  'creatures-ec1.json',
+  'creatures-ec2.json',
+  'creatures-ec3.json',
+  'creatures-ec4.json',
+  'creatures-ec5.json',
+  'creatures-ec6.json',
+  'creatures-fop.json',
+  'creatures-botd.json',
+  'creatures-da.json',
+  'creatures-tv.json',
+  'creatures-lotgb.json',
+  'creatures-roe.json',
+  'creatures-bb.json',
 ];
 
 function parseSave(saveObj) {
@@ -3573,7 +3577,7 @@ async function loadPF2eData() {
     if (dirResp.ok) {
       const dirData = await dirResp.json();
       filesToLoad = dirData
-        .filter(f => f.name.endsWith('.json') && f.name.startsWith('bestiary'))
+        .filter(f => f.name.endsWith('.json') && (f.name.startsWith('creatures-') || f.name.startsWith('bestiary')))
         .map(f => f.name);
     }
   } catch(e) {}
@@ -3598,7 +3602,7 @@ async function loadPF2eData() {
 
       // pf2etools stores creatures under different keys depending on version
       const creatures = data.monster || data.creature || data.npc || [];
-      const label = filename.replace('bestiary-','').replace('.json','').toUpperCase();
+      const label = filename.replace('creatures-','').replace('bestiary-','').replace('.json','').toUpperCase();
       creatures.forEach(raw => {
         try { results.push(mapPf2eCreature(raw, label)); } catch(e) {}
       });
