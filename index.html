@@ -1417,6 +1417,24 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Inline combatant stat inputs */
+  .cbt-stat-input {
+    width: 100%;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 1px 2px;
+    outline: none;
+    /* hide number spinners */
+    -moz-appearance: textfield;
+  }
+  .cbt-stat-input::-webkit-outer-spin-button,
+  .cbt-stat-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .cbt-stat-input:focus { border-bottom-color: var(--gold); }
+
   /* ── PDF Import ── */
   .pdf-import-overlay {
     display: none;
@@ -2369,6 +2387,41 @@ function refreshPCStats() {
   toast('PC stats refreshed from Party tab');
 }
 
+function setEnemyInit(combId, val) {
+  const c = combatants.find(x => x.id === combId);
+  if (!c) return;
+  c.init = parseInt(val) || 0;
+  combatants.sort((a, b) => b.init - a.init);
+  renderCombat();
+}
+
+function setCombatantName(combId, val) {
+  const c = combatants.find(x => x.id === combId);
+  if (c && val.trim()) c.name = val.trim();
+}
+
+function setCombatantStat(combId, stat, val) {
+  const c = combatants.find(x => x.id === combId);
+  if (!c) return;
+  const n = parseInt(val);
+  if (isNaN(n)) return;
+  if (stat === 'maxhp') {
+    c.maxhp = n;
+    if (c.hp > c.maxhp) c.hp = c.maxhp;
+    renderCombat();
+  } else {
+    c[stat] = n;
+  }
+}
+
+function setCombatantSave(combId, save, val) {
+  const c = combatants.find(x => x.id === combId);
+  if (!c) return;
+  if (!c.saves) c.saves = { fort: 0, ref: 0, will: 0 };
+  const n = parseInt(val);
+  if (!isNaN(n)) c.saves[save] = n;
+}
+
 function setPCInit(combId, val) {
   const c = combatants.find(x => x.id === combId);
   if (!c) return;
@@ -2645,10 +2698,10 @@ function renderCombat() {
       `<span class="persist-tag" onclick="removePersist(${c.id},${p.id})" title="Click to remove">🔥 ${p.dmg} ${p.type} (DC ${p.dc})</span>`
     ).join('');
 
-    // Initiative cell: editable input for PCs, static display for others
+    // Initiative cell: editable for everyone
     const initCell = isPC
       ? `<input type="number" class="cbt-init-input" value="${c.init}" onchange="setPCInit(${c.id}, this.value)" title="Edit initiative">`
-      : `<div class="init-num">${c.init}</div>`;
+      : `<input type="number" class="cbt-init-input" value="${c.init}" onchange="setEnemyInit(${c.id}, this.value)" title="Edit initiative">`; 
 
     // HP cell: for PCs show max only (HP tracked in party tab); for enemies/allies show editable current/max
     let hpCell = '';
@@ -2656,10 +2709,11 @@ function renderCombat() {
       hpCell = `<div class="cbt-stat stat-hp"><span class="sv">${c.maxhp}</span><span class="sl">Max HP</span></div>`;
     } else {
       hpCell = `
-        <div class="cbt-stat stat-hp" style="min-width:80px">
+        <div class="cbt-stat stat-hp" style="min-width:90px">
           <div style="display:flex;gap:3px;align-items:center">
             <input type="number" class="cbt-hp-input" value="${c.hp}" onchange="setHP(${c.id}, this.value)" title="Current HP">
-            <span style="color:var(--text-dim);font-size:11px">/ ${c.maxhp}</span>
+            <span style="color:var(--text-dim);font-size:11px">/</span>
+            <input type="number" class="cbt-hp-input" value="${c.maxhp}" onchange="setCombatantStat(${c.id},'maxhp',this.value)" title="Max HP" style="color:var(--text-dim)">
           </div>
           <div class="hp-bar-row" style="width:100%"><div class="hp-bar-row-fill" style="width:${pct}%;background:${barColor}"></div></div>
           <span class="sl">HP</span>
@@ -2682,17 +2736,38 @@ function renderCombat() {
       </div>
       <div class="type-icon ${c.type}">${typeLabel}</div>
       <div>
-        <div class="combatant-name">
-          ${c.name}
-          ${isPC ? '<span style="color:var(--green);font-size:9px;margin-left:6px">PC</span>' : ''}
-          ${idx === activeTurnIndex ? '<span style="color:var(--gold);font-size:10px;margin-left:6px">◆ ACTIVE</span>' : ''}
+        <div class="combatant-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${isPC
+            ? `<span>${c.name}</span><span style="color:var(--green);font-size:9px">PC</span>`
+            : `<input type="text" value="${c.name}" onchange="setCombatantName(${c.id}, this.value)"
+                style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text-bright);
+                font-family:'Cinzel',serif;font-size:13px;padding:0 0 1px;width:auto;min-width:80px;max-width:180px"
+                title="Click to rename">`
+          }
+          ${idx === activeTurnIndex ? '<span style="color:var(--gold);font-size:10px">◆ ACTIVE</span>' : ''}
         </div>
         <div class="cbt-stats">
-          <div class="cbt-stat stat-ac" ${mods.ac ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(c.ac, effAC)}</span><span class="sl">AC</span></div>
+          ${isPC
+            ? `<div class="cbt-stat stat-ac" ${mods.ac ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(c.ac, effAC)}</span><span class="sl">AC</span></div>`
+            : `<div class="cbt-stat stat-ac" ${mods.ac ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}>
+                <input type="number" class="cbt-stat-input" value="${c.ac}" onchange="setCombatantStat(${c.id},'ac',this.value)" title="AC" style="color:var(--blue-bright)">
+                <span class="sl">AC</span></div>`
+          }
           ${hpCell}
-          <div class="cbt-stat stat-fort" ${mods.fort ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.fort, effFort)}</span><span class="sl">Fort</span></div>
-          <div class="cbt-stat stat-ref" ${mods.ref ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.ref, effRef)}</span><span class="sl">Ref</span></div>
-          <div class="cbt-stat stat-will" ${mods.will ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.will, effWill)}</span><span class="sl">Will</span></div>
+          ${isPC
+            ? `<div class="cbt-stat stat-fort" ${mods.fort ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.fort, effFort)}</span><span class="sl">Fort</span></div>
+               <div class="cbt-stat stat-ref" ${mods.ref ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.ref, effRef)}</span><span class="sl">Ref</span></div>
+               <div class="cbt-stat stat-will" ${mods.will ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.will, effWill)}</span><span class="sl">Will</span></div>`
+            : `<div class="cbt-stat stat-fort" ${mods.fort ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}>
+                <input type="number" class="cbt-stat-input" value="${saves.fort}" onchange="setCombatantSave(${c.id},'fort',this.value)" title="Fortitude" style="color:#e67e22">
+                <span class="sl">Fort</span></div>
+               <div class="cbt-stat stat-ref" ${mods.ref ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}>
+                <input type="number" class="cbt-stat-input" value="${saves.ref}" onchange="setCombatantSave(${c.id},'ref',this.value)" title="Reflex" style="color:var(--cyan)">
+                <span class="sl">Ref</span></div>
+               <div class="cbt-stat stat-will" ${mods.will ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}>
+                <input type="number" class="cbt-stat-input" value="${saves.will}" onchange="setCombatantSave(${c.id},'will',this.value)" title="Will" style="color:#9b59b6">
+                <span class="sl">Will</span></div>`
+          }
         </div>
         ${dmgHealRow}
         <div class="conditions-row" style="margin-top:4px">${condsHtml}${persistHtml}</div>
