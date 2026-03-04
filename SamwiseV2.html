@@ -1,0 +1,4138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Samwise — GM Screen</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e2a;
+    --panel: #161a24;
+    --border: #2a3048;
+    --border-bright: #3d4a6e;
+    --gold: #c9973a;
+    --gold-dim: #7a5a1f;
+    --amber: #e8a234;
+    --red: #c0392b;
+    --red-bright: #e74c3c;
+    --green: #27ae60;
+    --green-bright: #2ecc71;
+    --blue: #2980b9;
+    --blue-bright: #3498db;
+    --purple: #8e44ad;
+    --cyan: #1abc9c;
+    --text: #d4cfc7;
+    --text-dim: #7a8099;
+    --text-bright: #f0ebe0;
+    --accent: #c9973a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* Header */
+  header {
+    background: linear-gradient(180deg, #0a0c10 0%, var(--bg2) 100%);
+    border-bottom: 2px solid var(--gold-dim);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(201,151,58,0.4);
+  }
+
+  .logo span { color: var(--text-dim); font-size: 11px; letter-spacing: 2px; display: block; margin-top: 1px; }
+
+  .system-toggle {
+    display: flex;
+    gap: 6px;
+  }
+
+  .sys-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .sys-btn.active {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .sys-btn:hover:not(.active) { border-color: var(--border-bright); color: var(--text); }
+
+  /* Tab Nav */
+  .tab-nav {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    gap: 2px;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    padding: 10px 18px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* Main layout */
+  .main { padding: 16px; display: none; }
+  .main.active { display: block; }
+
+  /* Panel */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .panel-header {
+    background: linear-gradient(90deg, var(--bg3) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 14px;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-body { padding: 12px 14px; }
+
+  /* Grid layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+  /* ===== COMBAT TAB ===== */
+  .initiative-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .combatant {
+    display: grid;
+    grid-template-columns: 44px 34px 1fr auto auto;
+    align-items: start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  /* stat strip shown on every combatant row */
+  .cbt-stats {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .cbt-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 42px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border);
+    padding: 3px 6px;
+    border-radius: 2px;
+  }
+
+  .cbt-stat .sv { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--text-bright); }
+  .cbt-stat .sl { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .cbt-stat.stat-ac .sv  { color: var(--blue-bright); }
+  .cbt-stat.stat-hp .sv  { color: var(--green-bright); }
+  .cbt-stat.stat-fort .sv { color: #e67e22; }
+  .cbt-stat.stat-ref .sv  { color: var(--cyan); }
+  .cbt-stat.stat-will .sv { color: #9b59b6; }
+
+  /* editable HP for enemies/allies */
+  .cbt-hp-input {
+    width: 50px;
+    padding: 2px 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    text-align: center;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    color: var(--green-bright);
+    border-radius: 2px;
+    -moz-appearance: textfield;
+  }
+  .cbt-hp-input:focus { border-color: var(--green); outline: none; }
+  .cbt-hp-input::-webkit-inner-spin-button,
+  .cbt-hp-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* editable initiative for PCs */
+  .cbt-init-input {
+    width: 40px;
+    padding: 2px 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    text-align: center;
+    background: transparent;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    border-radius: 2px;
+    -moz-appearance: textfield;
+  }
+  .cbt-init-input:focus { border-color: var(--gold); outline: none; }
+  .cbt-init-input::-webkit-inner-spin-button,
+  .cbt-init-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* hp-section for dmg/heal controls */
+  .hp-dmg-row {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    margin-top: 5px;
+  }
+
+  .hp-bar-row {
+    height: 5px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 3px;
+  }
+  .hp-bar-row-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  .combatant.active-turn { border-left-color: var(--gold); background: rgba(201,151,58,0.06); }
+  .combatant.enemy { border-left-color: var(--red); }
+  .combatant.dead { opacity: 0.4; text-decoration: line-through; }
+
+  .init-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    color: var(--gold);
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .type-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+  .type-icon.pc { background: rgba(39,174,96,0.2); border: 1px solid var(--green); color: var(--green); }
+  .type-icon.enemy { background: rgba(192,57,43,0.2); border: 1px solid var(--red); color: var(--red); }
+  .type-icon.ally { background: rgba(41,128,185,0.2); border: 1px solid var(--blue); color: var(--blue); }
+
+  .combatant-name {
+    font-size: 14px;
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+
+  .combatant-name .conditions-row {
+    display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px;
+  }
+
+  .cond-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  .cond-tag.red { border-color: var(--red); color: var(--red); background: rgba(192,57,43,0.15); }
+  .cond-tag.orange { border-color: #e67e22; color: #e67e22; background: rgba(230,126,34,0.15); }
+  .cond-tag.blue { border-color: var(--blue); color: var(--blue-bright); background: rgba(52,152,219,0.15); }
+  .cond-tag.purple { border-color: var(--purple); color: #9b59b6; background: rgba(142,68,173,0.15); }
+
+  .hp-section { display: flex; flex-direction: column; gap: 4px; }
+
+  .hp-bar-wrap {
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .hp-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .hp-bar.high { background: var(--green); }
+  .hp-bar.mid { background: #e67e22; }
+  .hp-bar.low { background: var(--red-bright); }
+
+  .hp-nums {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-bright);
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .stat-box {
+    text-align: center;
+  }
+
+  .stat-box .val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-bright);
+  }
+
+  .stat-box .lbl {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .combatant-actions { display: flex; gap: 4px; align-items: center; }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+    border-radius: 2px;
+  }
+
+  .icon-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .icon-btn.danger:hover { border-color: var(--red); color: var(--red); }
+
+  /* Add Combatant */
+  .add-combatant-form {
+    display: grid;
+    grid-template-columns: 60px 1fr 70px 60px 60px auto;
+    gap: 8px;
+    align-items: end;
+    padding: 10px;
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    margin-top: 8px;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 3px; }
+
+  .form-group label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  input[type="text"], input[type="number"], select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus { border-color: var(--gold); }
+  select { cursor: pointer; }
+
+  .btn {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 7px 14px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .btn-gold { border-color: var(--gold-dim); background: rgba(201,151,58,0.1); color: var(--gold); }
+  .btn-gold:hover { background: rgba(201,151,58,0.25); border-color: var(--gold); }
+  .btn-red { border-color: rgba(192,57,43,0.5); background: rgba(192,57,43,0.1); color: var(--red-bright); }
+  .btn-red:hover { background: rgba(192,57,43,0.25); }
+  .btn-green { border-color: rgba(39,174,96,0.5); background: rgba(39,174,96,0.1); color: var(--green-bright); }
+  .btn-green:hover { background: rgba(39,174,96,0.25); }
+  .btn-blue { border-color: rgba(41,128,185,0.5); background: rgba(41,128,185,0.1); color: var(--blue-bright); }
+
+  /* Round counter */
+  .round-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .round-num {
+    font-family: 'Cinzel', serif;
+    font-size: 22px;
+    color: var(--gold);
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* ===== CONDITIONS ===== */
+  .conditions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+
+  .condition-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .condition-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+
+  .condition-card.cat-penalized::before { background: var(--red); }
+  .condition-card.cat-movement::before { background: #e67e22; }
+  .condition-card.cat-mental::before { background: var(--purple); }
+  .condition-card.cat-physical::before { background: var(--blue); }
+  .condition-card.cat-beneficial::before { background: var(--green); }
+  .condition-card.cat-special::before { background: var(--cyan); }
+  .condition-card.cat-sf2::before { background: #00d4ff; }
+
+  .condition-card:hover { border-color: var(--border-bright); background: rgba(255,255,255,0.04); }
+
+  .condition-name {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+  }
+
+  .condition-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .condition-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--amber);
+    margin-top: 4px;
+  }
+
+  /* ===== PARTY ===== */
+  .party-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  .pc-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .pc-card-header {
+    background: linear-gradient(90deg, rgba(39,174,96,0.15) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .pc-name {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    color: var(--text-bright);
+  }
+
+  .pc-class {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .pc-card-body { padding: 12px 14px; }
+
+  .resource-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .resource-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    width: 70px;
+    flex-shrink: 0;
+  }
+
+  .resource-bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .resource-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .bar-hp { background: var(--green); }
+  .bar-sp { background: var(--blue); }
+  .bar-focus { background: var(--purple); }
+  .bar-hero { background: var(--gold); }
+
+  .resource-nums {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    width: 60px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .pips {
+    display: flex;
+    gap: 4px;
+  }
+
+  .pip {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-dim);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .pip.filled { background: var(--gold); border-color: var(--gold); }
+
+  .pc-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .pc-stat { text-align: center; }
+  .pc-stat .v { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--text-bright); }
+  .pc-stat .l { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ===== NOTES / SCENE ===== */
+  .notes-area {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 15px;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 120px;
+    outline: none;
+  }
+
+  .notes-area:focus { border-color: var(--gold); }
+
+  .scene-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .scene-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .scene-card.active-scene {
+    border-left-color: var(--gold);
+    background: rgba(201,151,58,0.05);
+  }
+
+  .scene-card:hover { border-color: var(--border-bright); }
+
+  .scene-name {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--text-bright);
+    flex: 1;
+  }
+
+  .scene-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 2px;
+  }
+
+  /* ===== DC TABLE ===== */
+  .dc-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .dc-table th {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--gold);
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--gold-dim);
+    background: var(--bg3);
+  }
+
+  .dc-table td {
+    padding: 5px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(42,48,72,0.5);
+  }
+
+  .dc-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+  .dc-table td:first-child { color: var(--text-dim); font-size: 11px; font-family: 'Crimson Pro', serif; }
+  .dc-table td.dc-val { color: var(--amber); font-weight: bold; }
+
+  /* ===== DICE ROLLER ===== */
+  .dice-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .dice-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .dice-btn {
+    width: 52px; height: 52px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }
+
+  .dice-btn:hover { background: rgba(201,151,58,0.2); border-color: var(--gold); color: var(--gold); }
+  .dice-btn.rolled { background: rgba(201,151,58,0.3); border-color: var(--gold); }
+
+  .roll-result {
+    font-family: 'Cinzel', serif;
+    font-size: 48px;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(201,151,58,0.5);
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pop 0.2s ease-out;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.7); opacity: 0.3; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .roll-history {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .roll-hist-item {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+  }
+
+  .roll-hist-item.crit { color: var(--gold); border-color: var(--gold-dim); }
+  .roll-hist-item.fail { color: var(--red); border-color: rgba(192,57,43,0.4); }
+
+  /* Modifier row */
+  .modifier-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modifier-row label { font-size: 12px; color: var(--text-dim); }
+  .modifier-row input { width: 60px; text-align: center; }
+
+  /* ===== STARFINDER SPECIFIC ===== */
+  .ship-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .arc-panel {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 10px;
+    text-align: center;
+  }
+
+  .arc-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .shield-bar-wrap {
+    height: 10px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 4px 0;
+  }
+
+  .shield-bar { height: 100%; background: var(--blue); border-radius: 5px; transition: width 0.3s; }
+
+  .shield-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--blue-bright);
+  }
+
+  /* Action economy quick ref */
+  .action-ref {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .action-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .action-symbol {
+    font-size: 16px;
+    color: var(--gold);
+  }
+
+  /* Skill DC quick table */
+  .quick-dc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .quick-dc-cell {
+    background: var(--bg3);
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .quick-dc-cell .difficulty { color: var(--text-dim); font-style: italic; }
+  .quick-dc-cell .dc-number { font-family: 'Share Tech Mono', monospace; color: var(--amber); font-weight: bold; }
+
+  /* Encounter XP */
+  .xp-budget-bar {
+    height: 20px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+    position: relative;
+  }
+
+  .xp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--amber));
+    transition: width 0.4s;
+    border-radius: 4px;
+  }
+
+  .xp-fill.over { background: linear-gradient(90deg, var(--amber), var(--red-bright)); }
+
+  .xp-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .combatant { grid-template-columns: 30px 28px 1fr auto; }
+    .combatant .hp-section, .combatant .stat-box { display: none; }
+  }
+
+  /* Section divider */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 10px;
+    color: var(--text-dim);
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Glowing active highlight */
+  .active-glow { box-shadow: 0 0 10px rgba(201,151,58,0.15); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+
+  /* HP edit mode */
+  .hp-edit-inline {
+    display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 4px;
+  }
+
+  .hp-edit-inline input {
+    width: 52px;
+    padding: 4px 6px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .hp-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: bold;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    border-radius: 3px;
+    border: 1px solid;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .hp-btn.dmg { border-color: rgba(192,57,43,0.6); background: rgba(192,57,43,0.15); color: var(--red-bright); }
+  .hp-btn.dmg:hover { background: rgba(192,57,43,0.35); }
+  .hp-btn.heal { border-color: rgba(39,174,96,0.6); background: rgba(39,174,96,0.15); color: var(--green-bright); }
+  .hp-btn.heal:hover { background: rgba(39,174,96,0.35); }
+
+  /* Persistent damage tag */
+  .persist-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    border: 1px solid #e67e22;
+    color: #e67e22;
+    background: rgba(230,126,34,0.15);
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .persist-tag:hover { background: rgba(230,126,34,0.3); }
+
+  /* HP Buttons */
+  .hp-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+    font-weight: bold;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    border-radius: 3px;
+    border: 1px solid;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .hp-btn.dmg { border-color: rgba(192,57,43,0.6); background: rgba(192,57,43,0.15); color: var(--red-bright); }
+  .hp-btn.dmg:hover { background: rgba(192,57,43,0.35); }
+  .hp-btn.heal { border-color: rgba(39,174,96,0.6); background: rgba(39,174,96,0.15); color: var(--green-bright); }
+  .hp-btn.heal:hover { background: rgba(39,174,96,0.35); }
+
+  /* Condition picker modal */
+  #cond-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+  }
+  #cond-modal.open { display: flex; }
+
+  .cond-modal-box {
+    background: var(--panel);
+    border: 1px solid var(--gold-dim);
+    width: 460px;
+    max-width: 95vw;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8);
+  }
+  .cond-modal-header {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .cond-modal-body { padding: 12px 14px; overflow-y: auto; }
+
+  .cond-pick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .cond-pick-btn {
+    padding: 7px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    border-left: 3px solid rgba(201,151,58,0.2);
+  }
+  .cond-pick-btn:hover { border-left-color: var(--gold); background: rgba(201,151,58,0.08); color: var(--text-bright); }
+  .cond-pick-btn.penalized { border-left-color: rgba(192,57,43,0.5); }
+  .cond-pick-btn.movement { border-left-color: rgba(230,126,34,0.5); }
+  .cond-pick-btn.mental { border-left-color: rgba(142,68,173,0.5); }
+  .cond-pick-btn.beneficial { border-left-color: rgba(39,174,96,0.5); }
+
+  /* Persist modal */
+  #persist-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 600;
+    align-items: center;
+    justify-content: center;
+  }
+  #persist-modal.open { display: flex; }
+
+  .persist-modal-box {
+    background: var(--panel);
+    border: 1px solid rgba(230,126,34,0.6);
+    width: 320px;
+    max-width: 95vw;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    padding: 20px;
+  }
+
+  /* PC to initiative */
+  .pc-to-init-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    padding: 8px 10px;
+    background: rgba(39,174,96,0.05);
+    border: 1px dashed rgba(39,174,96,0.3);
+    margin-bottom: 8px;
+  }
+
+  /* Condition search */
+  .search-input {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    border-radius: 2px;
+  }
+
+  .status-badge.hostile { background: rgba(192,57,43,0.2); border: 1px solid var(--red); color: var(--red); }
+  .status-badge.neutral { background: rgba(232,162,52,0.2); border: 1px solid var(--amber); color: var(--amber); }
+  .status-badge.friendly { background: rgba(39,174,96,0.2); border: 1px solid var(--green); color: var(--green); }
+
+  /* Toast notification */
+  /* ── Music Tab ── */
+  .music-header-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .cat-filter-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .cat-pill {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    border-radius: 20px;
+  }
+
+  .cat-pill:hover { border-color: var(--border-bright); color: var(--text); }
+  .cat-pill.active { background: rgba(201,151,58,0.15); border-color: var(--gold); color: var(--gold); }
+
+  .playlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  .playlist-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: border-color 0.2s;
+    position: relative;
+  }
+
+  .playlist-card:hover { border-color: var(--border-bright); }
+
+  .playlist-card-header {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, var(--bg3) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+  }
+
+  .playlist-card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--text-bright);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .playlist-cat-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .playlist-cat-badge.combat   { border-color: var(--red);    color: var(--red);    background: rgba(192,57,43,0.15); }
+  .playlist-cat-badge.exploration { border-color: var(--green); color: var(--green-bright); background: rgba(39,174,96,0.12); }
+  .playlist-cat-badge.ambient  { border-color: var(--blue);   color: var(--blue-bright); background: rgba(41,128,185,0.12); }
+  .playlist-cat-badge.tavern   { border-color: var(--amber);  color: var(--amber);  background: rgba(232,162,52,0.12); }
+  .playlist-cat-badge.boss     { border-color: var(--purple); color: #9b59b6;       background: rgba(142,68,173,0.12); }
+  .playlist-cat-badge.other    { border-color: var(--border-bright); color: var(--text-dim); background: transparent; }
+
+  .playlist-embed {
+    width: 100%;
+    border: none;
+    display: block;
+  }
+
+  /* Add playlist form */
+  .add-playlist-form {
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  .add-playlist-form.collapsed { display: none; }
+
+  /* Empty state */
+  .music-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .music-empty .music-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+  }
+
+  /* ── Bestiary Tab ── */
+  .bestiary-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .bestiary-search-wrap {
+    position: relative;
+  }
+
+  .bestiary-search {
+    width: 100%;
+    padding: 9px 36px 9px 12px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 15px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .bestiary-search:focus { border-color: var(--gold); }
+
+  .bestiary-search-clear {
+    position: absolute;
+    right: 8px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    color: var(--text-dim); cursor: pointer; font-size: 14px;
+  }
+  .bestiary-search-clear:hover { color: var(--text); }
+
+  .bestiary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+
+  .bestiary-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .bestiary-list-item:hover { border-color: var(--border-bright); background: rgba(255,255,255,0.03); }
+  .bestiary-list-item.selected { border-left-color: var(--gold); background: rgba(201,151,58,0.07); }
+  .bestiary-list-item.custom-monster { border-left-color: var(--cyan); }
+  .bestiary-list-item.pf2e-monster { border-left-color: var(--blue); }
+
+  .bli-name { flex: 1; font-size: 14px; color: var(--text-bright); }
+  .bli-level {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .bli-type {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+    white-space: nowrap;
+  }
+
+  /* Stat block panel */
+  .statblock-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    min-height: 300px;
+  }
+
+  .statblock-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .statblock-empty-icon { font-size: 48px; opacity: 0.25; }
+
+  .statblock-header {
+    background: linear-gradient(90deg, rgba(201,151,58,0.15) 0%, transparent 100%);
+    border-bottom: 2px solid var(--gold-dim);
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .statblock-title { font-family: 'Cinzel', serif; font-size: 20px; color: var(--gold); }
+  .statblock-subtitle { font-size: 13px; color: var(--text-dim); font-style: italic; margin-top: 2px; }
+
+  .statblock-level-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .statblock-body { padding: 14px 16px; }
+
+  .sb-stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sb-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 52px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    border-radius: 2px;
+  }
+  .sb-stat .sv { font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-bright); }
+  .sb-stat .sl { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
+  .sb-stat.ac .sv  { color: var(--blue-bright); }
+  .sb-stat.hp .sv  { color: var(--green-bright); }
+  .sb-stat.fort .sv { color: #e67e22; }
+  .sb-stat.ref .sv  { color: var(--cyan); }
+  .sb-stat.will .sv { color: #9b59b6; }
+  .sb-stat.init .sv { color: var(--gold); }
+  .sb-stat.perc .sv { color: var(--amber); }
+
+  .sb-section { margin-bottom: 10px; }
+  .sb-section-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--gold-dim);
+    padding-bottom: 2px;
+  }
+  .sb-section-body { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+  .sb-trait {
+    display: inline-block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    background: rgba(201,151,58,0.1);
+    border-radius: 2px;
+    margin: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .sb-action-label {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+  .sb-action-text { font-size: 13px; color: var(--text-dim); }
+
+  .add-to-init-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(39,174,96,0.12);
+    border-top: 1px solid var(--border);
+  }
+
+  /* Custom monster form */
+  .custom-monster-form {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 14px;
+    margin-top: 10px;
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .filter-tab {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .filter-tab.active { background: rgba(201,151,58,0.12); border-color: var(--gold); color: var(--gold); }
+  .filter-tab:hover:not(.active) { border-color: var(--border-bright); color: var(--text); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── PDF Import ── */
+  .pdf-import-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 600;
+    align-items: center;
+    justify-content: center;
+  }
+  .pdf-import-overlay.open { display: flex; }
+
+  .pdf-import-box {
+    background: var(--panel);
+    border: 1px solid var(--gold-dim);
+    width: 560px;
+    max-width: 96vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9);
+  }
+
+  .pdf-import-header {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .pdf-drop-zone {
+    border: 2px dashed var(--border);
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg2);
+    margin-bottom: 12px;
+  }
+  .pdf-drop-zone:hover, .pdf-drop-zone.dragover {
+    border-color: var(--gold);
+    background: rgba(201,151,58,0.06);
+  }
+  .pdf-drop-zone-icon { font-size: 36px; margin-bottom: 8px; opacity: 0.6; }
+  .pdf-drop-zone-text { font-size: 14px; color: var(--text-dim); }
+  .pdf-drop-zone-sub  { font-size: 12px; color: var(--text-dim); opacity: 0.6; margin-top:4px; }
+
+  .pdf-monster-preview {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  .pdf-monster-preview .pm-name {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .pdf-monster-preview .pm-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .pdf-monster-preview .pm-stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  .pdf-status {
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    margin-bottom: 12px;
+    display: none;
+  }
+  .pdf-status.visible { display: block; }
+  .pdf-status.error { border-color: var(--red); color: var(--red-bright); }
+  .pdf-status.success { border-color: var(--green); color: var(--green-bright); }
+  .pdf-status.loading { border-color: var(--gold-dim); color: var(--text-dim); }
+
+  /* API Settings overlay */
+  .api-settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 700;
+    align-items: center;
+    justify-content: center;
+  }
+  .api-settings-overlay.open { display: flex; }
+
+  /* Condition tooltip */
+  .cond-tooltip-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .cond-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d0f18;
+    border: 1px solid var(--gold-dim);
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 8px 10px;
+    width: 220px;
+    z-index: 999;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  }
+
+  .cond-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--gold-dim);
+  }
+
+  .cond-tooltip-name {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .cond-tooltip-wrap:hover .cond-tooltip { display: block; }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--bg3);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 8px 20px;
+    transition: transform 0.3s;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🗡 Samwise <span>GM Screen · PF2e / SF2e</span></div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div class="system-toggle">
+      <button class="sys-btn active" id="pf2-btn" onclick="setSystem('pf2')">PF2e</button>
+      <button class="sys-btn" id="sf2-btn" onclick="setSystem('sf2')">SF2e</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="showTab('combat')">⚔ Combat</button>
+  <button class="tab-btn" onclick="showTab('party')">👥 Party</button>
+  <button class="tab-btn" onclick="showTab('conditions')">🩸 Conditions</button>
+  <button class="tab-btn" onclick="showTab('reference')">📖 Reference</button>
+  <button class="tab-btn" onclick="showTab('music')">🎵 Music</button>
+  <button class="tab-btn" onclick="showTab('bestiary')">🐉 Bestiary</button>
+</nav>
+
+<!-- ======================== COMBAT TAB ======================== -->
+<div id="tab-combat" class="main active">
+  <div class="grid-2" style="align-items:start">
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span>Initiative Order</span>
+            <button class="btn btn-blue" onclick="refreshPCStats()" style="padding:4px 10px;font-size:10px;letter-spacing:1px" title="Pull latest stats from Party tab">⟳ REFRESH PCs</button>
+          </div>
+          <div class="round-display">
+            <button class="icon-btn" onclick="changeRound(-1)">◀</button>
+            <div>
+              <div style="font-size:9px;color:var(--text-dim);text-align:center;letter-spacing:1px">ROUND</div>
+              <div class="round-num" id="round-num">1</div>
+            </div>
+            <button class="icon-btn" onclick="changeRound(1)">▶</button>
+            <button class="btn btn-gold" onclick="nextTurn()" style="padding:5px 10px">NEXT ▶</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="initiative-list" id="init-list"></div>
+
+          <!-- Add Combatant Form (Enemies & Allies only — PCs auto-added from Party tab) -->
+          <div style="background:var(--bg);border:1px dashed rgba(192,57,43,0.4);padding:12px;margin-top:8px">
+            <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Add Enemy / Ally</div>
+            <div style="display:grid;grid-template-columns:60px 1fr 54px 54px 54px 54px;gap:8px;margin-bottom:8px">
+              <div class="form-group">
+                <label>Init</label>
+                <input type="number" id="new-init" value="0" min="0" max="40" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+              </div>
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="new-name" placeholder="Goblin Warrior" style="width:100%;padding:7px 8px;font-size:14px" onkeydown="if(event.key==='Enter')addCombatant()">
+              </div>
+              <div class="form-group">
+                <label>AC</label>
+                <input type="number" id="new-ac" placeholder="18" min="1" max="60" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+              </div>
+              <div class="form-group">
+                <label>Fort</label>
+                <input type="number" id="new-fort" placeholder="+8" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+              </div>
+              <div class="form-group">
+                <label>Ref</label>
+                <input type="number" id="new-ref" placeholder="+6" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+              </div>
+              <div class="form-group">
+                <label>Will</label>
+                <input type="number" id="new-will" placeholder="+5" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
+              <div class="form-group">
+                <label>Current HP</label>
+                <input type="number" id="new-hp" placeholder="40" min="0" style="width:100%;padding:7px 8px;font-size:14px;text-align:center">
+              </div>
+              <div class="form-group">
+                <label>Max HP</label>
+                <input type="number" id="new-maxhp" placeholder="40" min="1" style="width:100%;padding:7px 8px;font-size:14px;text-align:center">
+              </div>
+              <div class="form-group">
+                <label>Type</label>
+                <select id="new-type" style="padding:7px 8px;font-size:13px;width:100%">
+                  <option value="enemy">Enemy</option>
+                  <option value="ally">Ally</option>
+                </select>
+              </div>
+              <button class="btn btn-gold" onclick="addCombatant()" style="padding:8px 14px;font-size:13px;align-self:end">+ ADD</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-red" onclick="clearCombat()">CLEAR ALL</button>
+            <button class="btn btn-blue" onclick="sortInitiative()">SORT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <!-- XP Budget -->
+      <div class="panel">
+        <div class="panel-header">Encounter XP Budget</div>
+        <div class="panel-body">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+            <div class="form-group" style="flex:1">
+              <label>Party Level</label>
+              <input type="number" id="party-level" value="5" min="1" max="20" oninput="updateXP()">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Party Size</label>
+              <input type="number" id="party-size" value="4" min="1" max="8" oninput="updateXP()">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Budget Used</label>
+              <input type="number" id="xp-used" value="0" min="0" oninput="updateXP()">
+            </div>
+          </div>
+          <div class="xp-budget-bar">
+            <div class="xp-fill" id="xp-fill" style="width:0%"></div>
+          </div>
+          <div class="xp-labels">
+            <span>0 XP</span>
+            <span id="xp-threat" style="color:var(--amber)">Moderate</span>
+            <span id="xp-max">120 XP</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px">
+            <div style="text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">Trivial</div>
+              <div id="xp-trivial" style="font-family:'Share Tech Mono',monospace;color:var(--green);font-size:14px">40</div>
+            </div>
+            <div style="text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">Low</div>
+              <div id="xp-low" style="font-family:'Share Tech Mono',monospace;color:var(--blue-bright);font-size:14px">60</div>
+            </div>
+            <div style="text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">Moderate</div>
+              <div id="xp-moderate" style="font-family:'Share Tech Mono',monospace;color:var(--amber);font-size:14px">80</div>
+            </div>
+            <div style="text-align:center;padding:6px;background:var(--bg3);border:1px solid var(--border)">
+              <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">Severe</div>
+              <div id="xp-severe" style="font-family:'Share Tech Mono',monospace;color:var(--red-bright);font-size:14px">120</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Economy Quick Ref -->
+      <div class="panel">
+        <div class="panel-header">Action Economy</div>
+        <div class="panel-body">
+          <div class="action-ref">
+            <div class="action-chip"><span class="action-symbol">◆</span><span>1 Action</span></div>
+            <div class="action-chip"><span class="action-symbol">◆◆</span><span>2 Actions</span></div>
+            <div class="action-chip"><span class="action-symbol">◆◆◆</span><span>3 Actions</span></div>
+            <div class="action-chip"><span class="action-symbol" style="color:var(--blue)">↺</span><span>Reaction</span></div>
+            <div class="action-chip"><span class="action-symbol" style="color:var(--text-dim)">◇</span><span>Free Action</span></div>
+          </div>
+          <div class="section-divider">Common Actions</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:13px">
+            <div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">◆</span> Strike</div>
+            <div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">◆</span> Step</div>
+            <div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">◆</span> Stride</div>
+            <div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">◆</span> Interact</div>
+            <div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">◆◆</span> Raise Shield</div>
+            <div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--gold)">◆◆</span> Escape</div>
+            <div style="padding:4px 0"><span style="color:var(--gold)">◆◆◆</span> Cast Spell (varies)</div>
+            <div style="padding:4px 0"><span style="color:var(--blue)">↺</span> Shield Block</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== PARTY TAB ======================== -->
+<div id="tab-party" class="main">
+  <div class="panel">
+    <div class="panel-header">
+      <span>Party Tracker</span>
+      <button class="btn btn-gold" onclick="addPC()">+ ADD PC</button>
+    </div>
+    <div class="panel-body">
+      <div class="party-grid" id="party-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== CONDITIONS TAB ======================== -->
+<div id="tab-conditions" class="main">
+  <div class="panel">
+    <div class="panel-header">Conditions Reference</div>
+    <div class="panel-body">
+      <input type="text" class="search-input" placeholder="Search conditions..." oninput="filterConditions(this.value)" id="cond-search">
+      <div class="conditions-grid" id="cond-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== REFERENCE TAB ======================== -->
+<div id="tab-reference" class="main">
+  <div class="grid-2" style="align-items:start">
+    <div class="panel">
+      <div class="panel-header">Skill Check DCs by Level</div>
+      <div class="panel-body" style="padding:0">
+        <table class="dc-table">
+          <thead>
+            <tr><th>Level</th><th>Untrained</th><th>Trained</th><th>Expert</th><th>Master</th><th>Legendary</th></tr>
+          </thead>
+          <tbody id="dc-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panel-header">Difficulty Classes (Quick)</div>
+        <div class="panel-body" style="padding:0">
+          <div class="quick-dc-grid">
+            <div class="quick-dc-cell"><span class="difficulty">Incredibly Easy</span><span class="dc-number">2</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Very Easy</span><span class="dc-number">5</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Easy</span><span class="dc-number">7</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Normal</span><span class="dc-number">10</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Hard</span><span class="dc-number">15</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Very Hard</span><span class="dc-number">20</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Incredibly Hard</span><span class="dc-number">30</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Near Impossible</span><span class="dc-number">40</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="panel-header">Recall Knowledge DCs</div>
+        <div class="panel-body" style="padding:0">
+          <div class="quick-dc-grid">
+            <div class="quick-dc-cell"><span class="difficulty">Common Creature</span><span class="dc-number">Level+15</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Uncommon</span><span class="dc-number">+2</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Rare</span><span class="dc-number">+5</span></div>
+            <div class="quick-dc-cell"><span class="difficulty">Unique</span><span class="dc-number">+10</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel pf2-only" style="margin-top:12px">
+        <div class="panel-header">Exploration Activities (PF2e)</div>
+        <div class="panel-body">
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+              <span>Scout</span><span style="color:var(--text-dim)">Perception, +1 init to all</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+              <span>Search</span><span style="color:var(--text-dim)">Perception for hidden things</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+              <span>Sneak</span><span style="color:var(--text-dim)">Stealth, −10 ft. speed</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+              <span>Detect Magic</span><span style="color:var(--text-dim)">Arcana/Occultism/etc.</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0">
+              <span>Follow the Expert</span><span style="color:var(--text-dim)">Aid expert's activity</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== STARSHIP TAB ======================== -->
+<!-- Add PC Modal -->
+<div id="addpc-modal" onclick="if(event.target===this)closeAddPCModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid var(--gold-dim);width:480px;max-width:95vw;box-shadow:0 0 40px rgba(0,0,0,0.8)">
+    <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;color:var(--gold);text-transform:uppercase">
+      <span>Add Party Member</span>
+      <button class="icon-btn" onclick="closeAddPCModal()">✕</button>
+    </div>
+    <div style="padding:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Name</label>
+          <input type="text" id="apc-name" placeholder="Sable Thornwood" style="width:100%;padding:8px;font-size:15px">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Class &amp; Level</label>
+          <input type="text" id="apc-cls" placeholder="Fighter 5" style="width:100%;padding:8px;font-size:14px">
+        </div>
+        <div class="form-group">
+          <label>Max HP</label>
+          <input type="number" id="apc-maxhp" placeholder="72" min="1" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>AC</label>
+          <input type="number" id="apc-ac" placeholder="22" min="1" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Fortitude</label>
+          <input type="number" id="apc-fort" placeholder="+12" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Reflex</label>
+          <input type="number" id="apc-ref" placeholder="+10" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Will</label>
+          <input type="number" id="apc-will" placeholder="+8" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Perception</label>
+          <input type="number" id="apc-perc" placeholder="+10" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Focus Points (max)</label>
+          <input type="number" id="apc-focus" value="0" min="0" max="3" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Hero Points (start)</label>
+          <input type="number" id="apc-hero" value="1" min="0" max="3" style="width:100%;padding:8px;font-size:14px;text-align:center">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-gold" onclick="confirmAddPC()" style="flex:1">ADD TO PARTY</button>
+        <button class="btn btn-red" onclick="closeAddPCModal()" style="flex:1">CANCEL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Condition Picker Modal -->
+<div id="cond-modal" onclick="if(event.target===this)closeCondModal()">
+  <div class="cond-modal-box">
+    <div class="cond-modal-header">
+      <span>Apply Condition</span>
+      <button class="icon-btn" onclick="closeCondModal()" style="color:var(--text-dim)">✕</button>
+    </div>
+    <div class="cond-modal-body">
+      <div class="cond-pick-grid">
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Blinded')">Blinded</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Clumsy 1')">Clumsy 1</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Confused')">Confused</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Dazzled')">Dazzled</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Deafened')">Deafened</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Dying 1')">Dying 1</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Enfeebled 1')">Enfeebled 1</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Fatigued')">Fatigued</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Flat-Footed')">Flat-Footed</button>
+        <button class="cond-pick-btn mental" onclick="pickCondition('Frightened 1')">Frightened 1</button>
+        <button class="cond-pick-btn movement" onclick="pickCondition('Grabbed')">Grabbed</button>
+        <button class="cond-pick-btn movement" onclick="pickCondition('Immobilized')">Immobilized</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Paralyzed')">Paralyzed</button>
+        <button class="cond-pick-btn movement" onclick="pickCondition('Prone')">Prone</button>
+        <button class="cond-pick-btn movement" onclick="pickCondition('Restrained')">Restrained</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Sickened 1')">Sickened 1</button>
+        <button class="cond-pick-btn movement" onclick="pickCondition('Slowed 1')">Slowed 1</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Stunned 1')">Stunned 1</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Stupefied 1')">Stupefied 1</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Unconscious')">Unconscious</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Wounded 1')">Wounded 1</button>
+        <button class="cond-pick-btn beneficial" onclick="pickCondition('Invisible')">Invisible</button>
+        <button class="cond-pick-btn beneficial" onclick="pickCondition('Quickened')">Quickened</button>
+        <button class="cond-pick-btn penalized" onclick="pickCondition('Doomed 1')">Doomed 1</button>
+        <button class="cond-pick-btn" style="border-left-color:#00d4ff;grid-column:1/-1;background:rgba(0,212,255,0.05)" onclick="pickCondition('Glitching 1')">⚡ Glitching 1 <span style="font-size:10px;color:var(--text-dim)">(SF2e)</span></button>
+        <button class="cond-pick-btn" style="border-left-color:#00d4ff;background:rgba(0,212,255,0.05)" onclick="pickCondition('Suppressed')">⚡ Suppressed <span style="font-size:10px;color:var(--text-dim)">(SF2e)</span></button>
+        <button class="cond-pick-btn" style="border-left-color:#00d4ff;background:rgba(0,212,255,0.05)" onclick="pickCondition('Untethered')">⚡ Untethered <span style="font-size:10px;color:var(--text-dim)">(SF2e)</span></button>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);text-align:center;font-style:italic">Click a condition to apply. Click condition tag on combatant to remove.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Persistent Damage Modal -->
+<div id="persist-modal" onclick="if(event.target===this)closePersistModal()">
+  <div class="persist-modal-box">
+    <div style="font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;color:#e67e22;margin-bottom:14px;text-transform:uppercase">🔥 Persistent Damage</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group">
+        <label>Damage / Round</label>
+        <input type="text" id="persist-dmg-val" placeholder="e.g. 4  or  2d6" style="width:100%;padding:8px;font-size:15px">
+      </div>
+      <div class="form-group">
+        <label>Damage Type</label>
+        <input type="text" id="persist-dmg-type" value="fire" placeholder="fire, bleed...">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Flat Check DC to End</label>
+      <input type="number" id="persist-dc" value="15" min="1" max="30">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic">Standard persistent damage DC is 15. Some effects use higher DC.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gold" onclick="savePersistDamage()" style="flex:1">APPLY</button>
+      <button class="btn btn-red" onclick="closePersistModal()" style="flex:1">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== MUSIC TAB ======================== -->
+<div id="tab-music" class="main">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="music-header-bar">
+        <span>🎵 Session Soundtrack</span>
+        <button class="btn btn-gold" onclick="toggleAddForm()" id="add-form-toggle" style="padding:4px 12px;font-size:10px">+ ADD PLAYLIST</button>
+        <button class="btn btn-red" id="edit-mode-btn" onclick="toggleEditMode()" style="padding:4px 12px;font-size:10px;display:none">✎ EDIT</button>
+      </div>
+    </div>
+    <div class="panel-body">
+
+      <!-- Add Playlist Form -->
+      <div class="add-playlist-form collapsed" id="add-playlist-form">
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">New Playlist</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label>Playlist Name</label>
+            <input type="text" id="pl-name" placeholder="Dungeon Crawl" style="width:100%;padding:7px 8px;font-size:14px">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="pl-cat" style="width:100%;padding:7px 8px;font-size:13px">
+              <option value="combat">Combat</option>
+              <option value="exploration">Exploration</option>
+              <option value="ambient">Ambient</option>
+              <option value="tavern">Tavern</option>
+              <option value="boss">Boss Fight</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Spotify Playlist URL</label>
+          <input type="text" id="pl-url" placeholder="https://open.spotify.com/playlist/..." style="width:100%;padding:7px 8px;font-size:13px">
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic">Right-click a playlist in Spotify → Share → Copy Playlist Link</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-gold" onclick="savePlaylist()" style="padding:7px 18px">SAVE</button>
+          <button class="btn btn-red" onclick="toggleAddForm()" style="padding:7px 18px">CANCEL</button>
+        </div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="cat-filter-row" id="cat-filters">
+        <button class="cat-pill active" onclick="filterMusic('all', this)">All</button>
+        <button class="cat-pill" onclick="filterMusic('combat', this)">Combat</button>
+        <button class="cat-pill" onclick="filterMusic('exploration', this)">Exploration</button>
+        <button class="cat-pill" onclick="filterMusic('ambient', this)">Ambient</button>
+        <button class="cat-pill" onclick="filterMusic('tavern', this)">Tavern</button>
+        <button class="cat-pill" onclick="filterMusic('boss', this)">Boss Fight</button>
+        <button class="cat-pill" onclick="filterMusic('other', this)">Other</button>
+      </div>
+
+      <!-- Playlist Grid -->
+      <div class="playlist-grid" id="playlist-grid"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ======================== BESTIARY TAB ======================== -->
+<div id="tab-bestiary" class="main">
+  <div class="panel">
+    <div class="panel-header">
+      <span>🐉 Bestiary</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-gold" onclick="openCustomMonsterForm()" style="padding:4px 12px;font-size:10px">+ CUSTOM MONSTER</button>
+        <button class="btn btn-blue" onclick="openPDFImport()" style="padding:4px 12px;font-size:10px">📄 IMPORT PDF</button>
+        <button class="btn" onclick="openAPISettings()" style="padding:4px 12px;font-size:10px;background:rgba(255,255,255,0.05);border-color:var(--border-bright);color:var(--text-dim)" title="API Key Settings">⚙ API</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="bestiary-layout">
+
+        <!-- Left: Search + List -->
+        <div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" onclick="setBestiarySource('all',this)">All</button>
+            <button class="filter-tab" onclick="setBestiarySource('pf2e',this)">PF2e Full</button>
+            <button class="filter-tab" onclick="setBestiarySource('compendium',this)">OGL</button>
+            <button class="filter-tab" onclick="setBestiarySource('custom',this)">My Monsters</button>
+          </div>
+          <div id="pf2e-load-bar" style="display:none;margin-bottom:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);font-size:12px;color:var(--text-dim)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div id="pf2e-load-spinner" style="width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+              <span id="pf2e-load-msg">Loading PF2e bestiary data…</span>
+            </div>
+            <div style="margin-top:6px;background:var(--bg2);border-radius:2px;height:4px;overflow:hidden">
+              <div id="pf2e-load-prog" style="height:100%;background:var(--gold);width:0%;transition:width 0.3s"></div>
+            </div>
+          </div>
+          <div class="bestiary-search-wrap">
+            <input type="text" class="bestiary-search" id="bestiary-search" placeholder="Search by name, type, or level..." oninput="filterBestiary(this.value)">
+            <button class="bestiary-search-clear" onclick="clearBestiarySearch()">✕</button>
+          </div>
+          <div class="bestiary-list" id="bestiary-list"></div>
+        </div>
+
+        <!-- Right: Stat Block -->
+        <div class="statblock-panel" id="statblock-panel">
+          <div class="statblock-empty">
+            <div class="statblock-empty-icon">📖</div>
+            <div>Select a creature from the list</div>
+            <div style="font-size:12px">to view its stat block</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Custom Monster Form (hidden by default) -->
+      <div class="custom-monster-form" id="custom-monster-form" style="display:none">
+        <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:12px">New Custom Monster</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="cm-name" placeholder="Voidwraith Stalker" style="width:100%;padding:7px 8px;font-size:14px">
+          </div>
+          <div class="form-group">
+            <label>Type / Traits</label>
+            <input type="text" id="cm-type" placeholder="Undead, Incorporeal" style="width:100%;padding:7px 8px;font-size:14px">
+          </div>
+          <div class="form-group">
+            <label>Level</label>
+            <input type="number" id="cm-level" placeholder="7" style="width:100%;padding:7px 6px;font-size:14px;text-align:center">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:10px">
+          <div class="form-group">
+            <label>AC</label>
+            <input type="number" id="cm-ac" placeholder="25" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>HP</label>
+            <input type="number" id="cm-hp" placeholder="120" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>Init Mod</label>
+            <input type="number" id="cm-init" placeholder="+8" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>Perc</label>
+            <input type="number" id="cm-perc" placeholder="+14" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>Fort</label>
+            <input type="number" id="cm-fort" placeholder="+16" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>Ref</label>
+            <input type="number" id="cm-ref" placeholder="+12" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>Will</label>
+            <input type="number" id="cm-will" placeholder="+15" style="width:100%;padding:7px 4px;font-size:14px;text-align:center">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label>Immunities / Resistances</label>
+            <input type="text" id="cm-imm" placeholder="fire, poison; resist cold 5" style="width:100%;padding:7px 8px;font-size:13px">
+          </div>
+          <div class="form-group">
+            <label>Speed</label>
+            <input type="text" id="cm-speed" placeholder="30 ft., fly 50 ft." style="width:100%;padding:7px 8px;font-size:13px">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Strikes / Actions (one per line: "Jaws +14, 2d8+6 piercing" or ability name + description)</label>
+          <textarea id="cm-actions" rows="4" style="width:100%;padding:7px 8px;font-size:13px;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:'Crimson Pro',serif;resize:vertical" placeholder="Jaws +18, 2d10+8 piercing&#10;Claw +18, 2d6+8 slashing (agile)&#10;Breath Weapon (2 actions) 12d6 fire in 30-foot cone, DC 28 Reflex"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Special Abilities / Notes</label>
+          <textarea id="cm-notes" rows="3" style="width:100%;padding:7px 8px;font-size:13px;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:'Crimson Pro',serif;resize:vertical" placeholder="Darkvision&#10;Frightful Presence (DC 26 Will, 60 feet)&#10;Regeneration 15 (deactivated by fire)"></textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-gold" onclick="saveCustomMonster()" style="padding:7px 18px">SAVE MONSTER</button>
+          <button class="btn btn-red" onclick="closeCustomMonsterForm()" style="padding:7px 18px">CANCEL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- API Settings Modal -->
+<div id="api-settings-overlay" class="api-settings-overlay" onclick="if(event.target===this)closeAPISettings()">
+  <div style="background:var(--panel);border:1px solid var(--gold-dim);width:480px;max-width:95vw;box-shadow:0 0 40px rgba(0,0,0,0.9)">
+    <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;color:var(--gold);text-transform:uppercase">
+      <span>⚙ API Settings</span>
+      <button class="icon-btn" onclick="closeAPISettings()">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:13px;color:var(--text);line-height:1.7;margin-bottom:16px">
+        PDF stat block scanning uses the <strong style="color:var(--gold)">Anthropic Claude API</strong>. Your key is stored only in this browser's localStorage and never sent anywhere except directly to Anthropic's servers.
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Anthropic API Key</label>
+        <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." style="width:100%;padding:9px 10px;font-size:14px;font-family:'Share Tech Mono',monospace;letter-spacing:0.5px">
+        <div style="font-size:11px;color:var(--text-dim);margin-top:5px;font-style:italic">Starts with <code style="color:var(--amber)">sk-ant-</code></div>
+      </div>
+      <div id="api-key-status" style="display:none;padding:8px 10px;font-size:12px;margin-bottom:12px;border:1px solid;border-radius:2px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gold" onclick="saveAPIKey()" style="flex:1">SAVE KEY</button>
+        <button class="btn btn-red" onclick="clearAPIKey()" style="flex:1">CLEAR KEY</button>
+        <button class="btn" onclick="closeAPISettings()" style="padding:8px 14px;background:transparent;border-color:var(--border);color:var(--text-dim)">CLOSE</button>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--bg3);border:1px solid var(--border);font-size:12px;color:var(--text-dim);line-height:1.6">
+        <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;color:var(--gold);margin-bottom:6px">HOW TO GET A FREE KEY</div>
+        1. Go to <strong style="color:var(--text)">console.anthropic.com</strong><br>
+        2. Sign up for a free account<br>
+        3. Click <strong style="color:var(--text)">API Keys</strong> in the left sidebar<br>
+        4. Click <strong style="color:var(--text)">Create Key</strong> — copy it immediately<br>
+        5. Paste it above and click Save Key<br><br>
+        <span style="color:var(--amber)">Free tier includes $5 credit — enough to scan hundreds of stat blocks.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PDF Import Modal -->
+<div id="pdf-import-overlay" class="pdf-import-overlay" onclick="if(event.target===this)closePDFImport()">
+  <div class="pdf-import-box">
+    <div class="pdf-import-header">
+      <span>📄 Import Stat Blocks from PDF</span>
+      <button class="icon-btn" onclick="closePDFImport()">✕</button>
+    </div>
+    <div style="padding:16px">
+
+      <!-- API key warning -->
+      <div id="pdf-no-key-warning" style="display:none;padding:10px 12px;background:rgba(192,57,43,0.1);border:1px solid var(--red);color:var(--red-bright);font-size:13px;margin-bottom:12px;border-radius:2px">
+        ⚠ No API key set. Click <button onclick="closePDFImport();openAPISettings()" style="background:transparent;border:none;color:var(--gold);cursor:pointer;font-size:13px;text-decoration:underline;padding:0">⚙ API Settings</button> to add your Anthropic key first.
+      </div>
+
+      <!-- Drop zone -->
+      <div class="pdf-drop-zone" id="pdf-drop-zone" onclick="document.getElementById('pdf-file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="handlePDFDrop(event)">
+        <div class="pdf-drop-zone-icon">📄</div>
+        <div class="pdf-drop-zone-text">Drop your PDF here or click to browse</div>
+        <div class="pdf-drop-zone-sub">Works with Paizo rulebooks, adventure paths, and homebrew PDFs</div>
+        <input type="file" id="pdf-file-input" accept=".pdf" style="display:none" onchange="handlePDFFile(this.files[0])">
+      </div>
+
+      <!-- Page range -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group">
+          <label>Start Page</label>
+          <input type="number" id="pdf-page-start" value="1" min="1" style="width:100%;padding:7px 8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>End Page</label>
+          <input type="number" id="pdf-page-end" value="5" min="1" style="width:100%;padding:7px 8px;font-size:14px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Game System</label>
+          <select id="pdf-system" style="width:100%;padding:7px 8px;font-size:13px">
+            <option value="pf2e">Pathfinder 2e</option>
+            <option value="sf2e">Starfinder 2e</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="pdf-status" id="pdf-status"></div>
+
+      <!-- Selected file info -->
+      <div id="pdf-file-info" style="display:none;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);font-size:12px;color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">📄</span>
+        <span id="pdf-file-name" style="flex:1;color:var(--text)"></span>
+        <button class="icon-btn danger" onclick="clearPDFFile()" style="flex-shrink:0">✕</button>
+      </div>
+
+      <!-- Scan button -->
+      <button class="btn btn-gold" id="pdf-scan-btn" onclick="scanPDF()" style="width:100%;padding:10px;font-size:14px;margin-bottom:16px" disabled>
+        🔍 SCAN FOR STAT BLOCKS
+      </button>
+
+      <!-- Results preview -->
+      <div id="pdf-results" style="display:none">
+        <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--gold-dim);padding-bottom:4px">
+          Found Creatures — click ✓ to save to My Monsters
+        </div>
+        <div id="pdf-monster-list"></div>
+        <button class="btn btn-green" onclick="saveAllPDFMonsters()" style="width:100%;padding:9px;font-size:13px;margin-top:10px">
+          ✓ SAVE ALL TO MY MONSTERS
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ===================== STATE =====================
+let currentSystem = 'pf2';
+let round = 1;
+let combatants = [];
+let activeTurnIndex = 0;
+let rollHistory = [];
+
+// Shields
+let shields = { fwd: 40, port: 40, stbd: 40, aft: 40 };
+let shieldMax = 40;
+let hullHP = 200;
+
+// ===================== SYSTEM TOGGLE =====================
+function setSystem(sys) {
+  currentSystem = sys;
+  document.getElementById('pf2-btn').classList.toggle('active', sys === 'pf2');
+  document.getElementById('sf2-btn').classList.toggle('active', sys === 'sf2');
+
+  document.querySelectorAll('.pf2-only').forEach(el => el.style.display = sys === 'pf2' ? '' : 'none');
+
+  renderParty();
+}
+
+// ===================== TABS =====================
+function showTab(id) {
+  document.querySelectorAll('.main').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ===================== COMBAT =====================
+// Sync all party PCs into combatants (add if missing, update stats if changed)
+function syncPCsIntoCombat() {
+  partyMembers.forEach(pc => {
+    const existing = combatants.find(c => c.pcId === pc.id);
+    if (!existing) {
+      combatants.push({
+        id: Date.now() + Math.random(), name: pc.name, init: 0, hp: pc.hp, maxhp: pc.maxhp,
+        ac: pc.ac, perc: pc.perc || 0, type: 'pc', conditions: [], dead: false, persistent: [], pcId: pc.id,
+        saves: { fort: pc.saves ? pc.saves.fort : 0, ref: pc.saves ? pc.saves.ref : 0, will: pc.saves ? pc.saves.will : 0 }
+      });
+    } else {
+      // Refresh stats from party tab (used by refresh button)
+      existing.name = pc.name;
+      existing.maxhp = pc.maxhp;
+      existing.ac = pc.ac;
+      existing.perc = pc.perc || 0;
+      existing.saves = { fort: pc.saves ? pc.saves.fort : 0, ref: pc.saves ? pc.saves.ref : 0, will: pc.saves ? pc.saves.will : 0 };
+    }
+  });
+  // Remove PC combatants whose PC was removed from party
+  combatants = combatants.filter(c => c.type !== 'pc' || partyMembers.find(p => p.id === c.pcId));
+  combatants.sort((a, b) => b.init - a.init);
+}
+
+function refreshPCStats() {
+  // Force full re-sync of all PC stats from partyMembers
+  partyMembers.forEach(pc => {
+    const existing = combatants.find(c => c.pcId === pc.id);
+    if (existing) {
+      existing.name   = pc.name;
+      existing.maxhp  = pc.maxhp;
+      existing.ac     = pc.ac;
+      existing.perc   = pc.perc || 0;
+      existing.saves  = {
+        fort: pc.saves ? pc.saves.fort : 0,
+        ref:  pc.saves ? pc.saves.ref  : 0,
+        will: pc.saves ? pc.saves.will : 0
+      };
+    }
+  });
+  renderCombat();
+  toast('PC stats refreshed from Party tab');
+}
+
+function setPCInit(combId, val) {
+  const c = combatants.find(x => x.id === combId);
+  if (!c) return;
+  c.init = parseInt(val) || 0;
+  combatants.sort((a, b) => b.init - a.init);
+  renderCombat();
+}
+
+function setHP(combId, val) {
+  const c = combatants.find(x => x.id === combId);
+  if (!c) return;
+  c.hp = Math.max(0, Math.min(c.maxhp, parseInt(val) || 0));
+  if (c.hp === 0) c.dead = true;
+  renderCombat();
+}
+
+function addCombatant() {
+  const name = document.getElementById('new-name').value.trim() || 'Unknown';
+  const init = parseInt(document.getElementById('new-init').value) || 0;
+  const hp = parseInt(document.getElementById('new-hp').value) || 20;
+  const maxhp = parseInt(document.getElementById('new-maxhp').value) || hp;
+  const ac = parseInt(document.getElementById('new-ac').value) || 15;
+  const type = document.getElementById('new-type').value;
+  const fort = parseInt(document.getElementById('new-fort').value) || 0;
+  const ref  = parseInt(document.getElementById('new-ref').value)  || 0;
+  const will = parseInt(document.getElementById('new-will').value) || 0;
+
+  combatants.push({
+    id: Date.now(), name, init, hp, maxhp, ac, type,
+    conditions: [], dead: false, persistent: [],
+    saves: { fort, ref, will }
+  });
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-hp').value = '';
+  document.getElementById('new-maxhp').value = '';
+  document.getElementById('new-fort').value = '';
+  document.getElementById('new-ref').value = '';
+  document.getElementById('new-will').value = '';
+
+  combatants.sort((a, b) => b.init - a.init);
+  renderCombat();
+  toast('Added: ' + name);
+}
+
+function sortInitiative() {
+  combatants.sort((a, b) => b.init - a.init);
+  activeTurnIndex = 0;
+  renderCombat();
+}
+
+function nextTurn() {
+  if (combatants.length === 0) return;
+  activeTurnIndex = (activeTurnIndex + 1) % combatants.length;
+  if (activeTurnIndex === 0) { round++; updateRound(); }
+  renderCombat();
+}
+
+function changeRound(d) {
+  round = Math.max(1, round + d);
+  updateRound();
+}
+
+function updateRound() {
+  document.getElementById('round-num').textContent = round;
+}
+
+function clearCombat() {
+  if (confirm('Clear enemies/allies and reset initiative? PCs will remain.')) {
+    // Keep PCs but reset their initiatives and conditions
+    combatants = combatants.filter(c => c.type === 'pc');
+    combatants.forEach(c => { c.init = 0; c.conditions = []; c.persistent = []; c.dead = false; });
+    activeTurnIndex = 0;
+    round = 1;
+    updateRound();
+    renderCombat();
+  }
+}
+
+function removeC(id) {
+  combatants = combatants.filter(c => c.id !== id);
+  if (activeTurnIndex >= combatants.length) activeTurnIndex = 0;
+  renderCombat();
+}
+
+function toggleDead(id) {
+  const c = combatants.find(x => x.id === id);
+  if (c) { c.dead = !c.dead; renderCombat(); }
+}
+
+function adjustHP(id, delta) {
+  const c = combatants.find(x => x.id === id);
+  if (!c) return;
+  const input = document.getElementById('hp-delta-' + id);
+  const amount = input ? (parseInt(input.value) || 0) : Math.abs(delta);
+  c.hp = Math.max(0, Math.min(c.maxhp, c.hp + (delta > 0 ? amount : -amount)));
+  if (c.hp === 0) c.dead = true;
+  renderCombat();
+}
+
+let condTargetId = null;
+let persistTargetId = null;
+
+function addConditionToC(id) {
+  condTargetId = id;
+  document.getElementById('cond-modal').classList.add('open');
+}
+
+function pickCondition(condName) {
+  const c = combatants.find(x => x.id === condTargetId);
+  if (!c) return;
+
+  // Conditions with numeric values that stack
+  const stackable = [
+    'Clumsy','Drained','Dying','Doomed','Enfeebled','Frightened',
+    'Sickened','Slowed','Stunned','Stupefied','Wounded','Glitching'
+  ];
+
+  // Strip trailing number from condName e.g. "Frightened 1" -> base="Frightened", num=1
+  const match = condName.match(/^(.+?)\s+(\d+)$/);
+  if (match) {
+    const base = match[1];
+    const addedVal = parseInt(match[2]);
+    if (stackable.some(s => base.toLowerCase() === s.toLowerCase())) {
+      // Find existing condition with same base
+      const existingIdx = c.conditions.findIndex(e => {
+        const em = e.match(/^(.+?)\s+(\d+)$/);
+        return em && em[1].toLowerCase() === base.toLowerCase();
+      });
+      if (existingIdx >= 0) {
+        // Stack: increment value
+        const em = c.conditions[existingIdx].match(/^(.+?)\s+(\d+)$/);
+        const newVal = parseInt(em[2]) + addedVal;
+        c.conditions[existingIdx] = base + ' ' + newVal;
+        closeCondModal();
+        renderCombat();
+        toast(base + ' stacked → ' + base + ' ' + newVal);
+        return;
+      }
+    }
+  }
+
+  // Non-stackable or no existing: just add if not already present
+  if (!c.conditions.includes(condName)) {
+    c.conditions.push(condName);
+  }
+  closeCondModal();
+  renderCombat();
+  toast('Applied: ' + condName);
+}
+
+function closeCondModal() {
+  document.getElementById('cond-modal').classList.remove('open');
+  condTargetId = null;
+}
+
+function openPersistModal(id) {
+  persistTargetId = id;
+  document.getElementById('persist-modal').classList.add('open');
+  document.getElementById('persist-dmg-val').value = '';
+  document.getElementById('persist-dmg-type').value = 'fire';
+  document.getElementById('persist-dc').value = '15';
+}
+
+function closePersistModal() {
+  document.getElementById('persist-modal').classList.remove('open');
+  persistTargetId = null;
+}
+
+function savePersistDamage() {
+  const c = combatants.find(x => x.id === persistTargetId);
+  if (!c) return;
+  const dmgRaw = document.getElementById('persist-dmg-val').value.trim();
+  if (!dmgRaw) { toast('Enter a damage value'); return; }
+  const type = document.getElementById('persist-dmg-type').value.trim() || 'fire';
+  const dc = parseInt(document.getElementById('persist-dc').value) || 15;
+  const dmg = dmgRaw;   // store as string to allow "2d6" etc.
+  if (!c.persistent) c.persistent = [];
+  c.persistent.push({ dmg, type, dc, id: Date.now() });
+  closePersistModal();
+  renderCombat();
+  toast('Persistent ' + dmg + ' ' + type + ' added');
+}
+
+function removePersist(combId, persistId) {
+  const c = combatants.find(x => x.id === combId);
+  if (c) { c.persistent = c.persistent.filter(p => p.id !== persistId); renderCombat(); }
+}
+
+function removeCondition(combId, condIdx) {
+  const c = combatants.find(x => x.id === combId);
+  if (c) { c.conditions.splice(condIdx, 1); renderCombat(); }
+}
+
+function decrementCondition(combId, condIdx) {
+  const c = combatants.find(x => x.id === combId);
+  if (!c) return;
+  const cond = c.conditions[condIdx];
+  const stackable = ['Clumsy','Drained','Dying','Doomed','Enfeebled','Frightened',
+                     'Sickened','Slowed','Stunned','Stupefied','Wounded','Glitching'];
+  const match = cond.match(/^(.+?)\s+(\d+)$/);
+  if (match) {
+    const base = match[1];
+    const val = parseInt(match[2]);
+    if (stackable.some(s => s.toLowerCase() === base.toLowerCase())) {
+      if (val <= 1) {
+        c.conditions.splice(condIdx, 1);
+        toast(base + ' removed');
+      } else {
+        c.conditions[condIdx] = base + ' ' + (val - 1);
+        toast(base + ' reduced to ' + (val - 1));
+      }
+      renderCombat();
+      return;
+    }
+  }
+  // Non-stackable: just remove
+  c.conditions.splice(condIdx, 1);
+  renderCombat();
+  toast(cond + ' removed');
+}
+
+function getCondColor(cond) {
+  cond = cond.toLowerCase();
+  if (['paralyzed','dying','grabbed','restrained','stunned'].some(k=>cond.includes(k))) return 'red';
+  if (['frightened','sickened','slowed','enfeebled','clumsy'].some(k=>cond.includes(k))) return 'orange';
+  if (['blinded','deafened','flat-footed','off-guard'].some(k=>cond.includes(k))) return 'blue';
+  if (['prone','petrified'].some(k=>cond.includes(k))) return 'purple';
+  return 'blue';
+}
+
+function renderCombat() {
+  const list = document.getElementById('init-list');
+
+  // Always sync PCs from partyMembers into combatants array
+  syncPCsIntoCombat();
+
+  if (combatants.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;font-style:italic">No combatants. Add enemies below.</div>';
+    return;
+  }
+
+  list.innerHTML = combatants.map((c, idx) => {
+    const isPC = c.type === 'pc';
+    const isEnemy = c.type === 'enemy';
+    const isAlly = c.type === 'ally';
+    const pct = c.maxhp > 0 ? Math.max(0, (c.hp / c.maxhp) * 100) : 0;
+    const barColor = pct > 60 ? 'var(--green)' : pct > 25 ? '#e67e22' : 'var(--red-bright)';
+    const typeLabel = isPC ? 'P' : isAlly ? 'A' : 'E';
+
+    const saves = c.saves || { fort: 0, ref: 0, will: 0 };
+    const mods = getConditionMods(c);
+    const effAC   = (typeof c.ac   === 'number' ? c.ac   : 0) + (mods.ac   || 0);
+    const effFort = (typeof saves.fort === 'number' ? saves.fort : 0) + (mods.fort || 0);
+    const effRef  = (typeof saves.ref  === 'number' ? saves.ref  : 0) + (mods.ref  || 0);
+    const effWill = (typeof saves.will === 'number' ? saves.will : 0) + (mods.will || 0);
+    const hasMod = mods.ac !== 0 || mods.fort !== 0 || mods.ref !== 0 || mods.will !== 0;
+    const fmtSave = v => (typeof v === 'number' && !isNaN(v)) ? (v >= 0 ? '+' + v : '' + v) : '—';
+    const fmtMod  = (base, eff) => {
+      const s = fmtSave(eff);
+      if (base === eff) return s;
+      return `<span style="text-decoration:line-through;opacity:0.45;font-size:10px">${fmtSave(base)}</span> <span style="color:var(--red-bright)">${s}</span>`;
+    };
+
+    const condsHtml = c.conditions.map((cond, ci) => {
+      const match = cond.match(/^(.+?)\s+(\d+)$/);
+      const baseName = match ? match[1] : cond;
+      const condData = CONDITIONS_DATA.find(d => d.name.toLowerCase() === baseName.toLowerCase());
+      const tooltipHtml = condData
+        ? `<div class="cond-tooltip"><div class="cond-tooltip-name">${condData.name}${match ? ' ' + match[2] : ''}</div>${condData.desc}${condData.value ? '<div style="color:var(--amber);margin-top:3px;font-size:11px">Value range: ' + condData.value + '</div>' : ''}</div>`
+        : '';
+      return `<span class="cond-tooltip-wrap"><span class="cond-tag ${getCondColor(cond)}" onclick="decrementCondition(${c.id},${ci})" title="Click to reduce/remove">${cond}</span>${tooltipHtml}</span>`;
+    }).join('');
+    const persistHtml = (c.persistent || []).map(p =>
+      `<span class="persist-tag" onclick="removePersist(${c.id},${p.id})" title="Click to remove">🔥 ${p.dmg} ${p.type} (DC ${p.dc})</span>`
+    ).join('');
+
+    // Initiative cell: editable input for PCs, static display for others
+    const initCell = isPC
+      ? `<input type="number" class="cbt-init-input" value="${c.init}" onchange="setPCInit(${c.id}, this.value)" title="Edit initiative">`
+      : `<div class="init-num">${c.init}</div>`;
+
+    // HP cell: for PCs show max only (HP tracked in party tab); for enemies/allies show editable current/max
+    let hpCell = '';
+    if (isPC) {
+      hpCell = `<div class="cbt-stat stat-hp"><span class="sv">${c.maxhp}</span><span class="sl">Max HP</span></div>`;
+    } else {
+      hpCell = `
+        <div class="cbt-stat stat-hp" style="min-width:80px">
+          <div style="display:flex;gap:3px;align-items:center">
+            <input type="number" class="cbt-hp-input" value="${c.hp}" onchange="setHP(${c.id}, this.value)" title="Current HP">
+            <span style="color:var(--text-dim);font-size:11px">/ ${c.maxhp}</span>
+          </div>
+          <div class="hp-bar-row" style="width:100%"><div class="hp-bar-row-fill" style="width:${pct}%;background:${barColor}"></div></div>
+          <span class="sl">HP</span>
+        </div>`;
+    }
+
+    // Damage/heal row (enemies & allies only — PCs managed in party tab)
+    const dmgHealRow = !isPC ? `
+      <div class="hp-dmg-row">
+        <button class="hp-btn dmg" onclick="adjustHP(${c.id},-1)" title="Damage">−</button>
+        <input type="number" id="hp-delta-${c.id}" value="5" min="1" style="width:52px;padding:5px 4px;font-size:14px;text-align:center;background:var(--bg2);border:1px solid var(--border);color:var(--text-bright);border-radius:2px">
+        <button class="hp-btn heal" onclick="adjustHP(${c.id},1)" title="Heal">+</button>
+      </div>` : '';
+
+    return `
+    <div class="combatant ${isEnemy ? 'enemy' : ''} ${isAlly ? 'ally-row' : ''} ${idx === activeTurnIndex ? 'active-turn active-glow' : ''} ${c.dead ? 'dead' : ''}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        ${initCell}
+        <div style="font-size:8px;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase">INIT</div>
+      </div>
+      <div class="type-icon ${c.type}">${typeLabel}</div>
+      <div>
+        <div class="combatant-name">
+          ${c.name}
+          ${isPC ? '<span style="color:var(--green);font-size:9px;margin-left:6px">PC</span>' : ''}
+          ${idx === activeTurnIndex ? '<span style="color:var(--gold);font-size:10px;margin-left:6px">◆ ACTIVE</span>' : ''}
+        </div>
+        <div class="cbt-stats">
+          <div class="cbt-stat stat-ac" ${mods.ac ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(c.ac, effAC)}</span><span class="sl">AC</span></div>
+          ${hpCell}
+          <div class="cbt-stat stat-fort" ${mods.fort ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.fort, effFort)}</span><span class="sl">Fort</span></div>
+          <div class="cbt-stat stat-ref" ${mods.ref ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.ref, effRef)}</span><span class="sl">Ref</span></div>
+          <div class="cbt-stat stat-will" ${mods.will ? 'style="border-color:rgba(192,57,43,0.5)"' : ''}><span class="sv">${fmtMod(saves.will, effWill)}</span><span class="sl">Will</span></div>
+        </div>
+        ${dmgHealRow}
+        <div class="conditions-row" style="margin-top:4px">${condsHtml}${persistHtml}</div>
+      </div>
+      <div class="combatant-actions" style="flex-direction:column;gap:4px">
+        <button class="icon-btn" onclick="addConditionToC(${c.id})" title="Add condition" style="font-size:13px">⚑</button>
+        <button class="icon-btn" onclick="openPersistModal(${c.id})" title="Add persistent damage" style="color:#e67e22;border-color:rgba(230,126,34,0.4);font-size:11px">🔥</button>
+        <button class="icon-btn" onclick="toggleDead(${c.id})" title="Toggle dead">☠</button>
+        ${!isPC ? `<button class="icon-btn danger" onclick="removeC(${c.id})" title="Remove">✕</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== XP BUDGET =====================
+function updateXP() {
+  const level = parseInt(document.getElementById('party-level').value) || 5;
+  const size = parseInt(document.getElementById('party-size').value) || 4;
+  const used = parseInt(document.getElementById('xp-used').value) || 0;
+
+  // Budget scales with party size (base 4)
+  const sizeMult = size / 4;
+  const trivial = Math.round(40 * sizeMult);
+  const low = Math.round(60 * sizeMult);
+  const moderate = Math.round(80 * sizeMult);
+  const severe = Math.round(120 * sizeMult);
+  const extreme = Math.round(160 * sizeMult);
+
+  document.getElementById('xp-trivial').textContent = trivial;
+  document.getElementById('xp-low').textContent = low;
+  document.getElementById('xp-moderate').textContent = moderate;
+  document.getElementById('xp-severe').textContent = severe;
+  document.getElementById('xp-max').textContent = extreme + ' XP';
+
+  const pct = Math.min(100, (used / extreme) * 100);
+  const fill = document.getElementById('xp-fill');
+  fill.style.width = pct + '%';
+  fill.className = 'xp-fill' + (pct > 80 ? ' over' : '');
+
+  let threat = 'Trivial';
+  if (used >= extreme) threat = '⚠ Extreme';
+  else if (used >= severe) threat = 'Severe';
+  else if (used >= moderate) threat = 'Moderate';
+  else if (used >= low) threat = 'Low';
+  document.getElementById('xp-threat').textContent = threat;
+}
+
+// ===================== PARTY =====================
+let partyMembers = [
+  { id: 1, name: 'Aetherion', cls: 'Wizard 5', hp: 45, maxhp: 45, focus: 3, maxFocus: 3, hero: 1, maxHero: 3, ac: 17, perc: 11, saves: { fort: 8, ref: 9, will: 12 } },
+  { id: 2, name: 'Graxis', cls: 'Fighter 5', hp: 72, maxhp: 72, focus: 0, maxFocus: 0, hero: 2, maxHero: 3, ac: 24, perc: 12, saves: { fort: 13, ref: 11, will: 9 } },
+  { id: 3, name: 'Lyra Dawnwhisper', cls: 'Cleric 5', hp: 55, maxhp: 55, focus: 3, maxFocus: 3, hero: 1, maxHero: 3, ac: 19, perc: 14, saves: { fort: 10, ref: 9, will: 13 } },
+];
+
+let nextPCId = 4;
+
+function addPC() {
+  // Clear fields and open modal
+  ['apc-name','apc-cls','apc-maxhp','apc-ac','apc-fort','apc-ref','apc-will'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('apc-focus').value = '0';
+  document.getElementById('apc-hero').value = '1';
+  const m = document.getElementById('addpc-modal');
+  m.style.display = 'flex';
+  setTimeout(() => document.getElementById('apc-name').focus(), 50);
+}
+
+function closeAddPCModal() {
+  document.getElementById('addpc-modal').style.display = 'none';
+}
+
+function confirmAddPC() {
+  const name = document.getElementById('apc-name').value.trim();
+  if (!name) { toast('Name is required'); return; }
+  const cls    = document.getElementById('apc-cls').value.trim() || 'Adventurer 1';
+  const maxhp  = parseInt(document.getElementById('apc-maxhp').value) || 30;
+  const ac     = parseInt(document.getElementById('apc-ac').value) || 15;
+  const fort   = parseInt(document.getElementById('apc-fort').value) || 0;
+  const ref    = parseInt(document.getElementById('apc-ref').value) || 0;
+  const will   = parseInt(document.getElementById('apc-will').value) || 0;
+  const perc   = parseInt(document.getElementById('apc-perc').value) || 0;
+  const maxFocus = parseInt(document.getElementById('apc-focus').value) || 0;
+  const hero   = parseInt(document.getElementById('apc-hero').value) || 1;
+  partyMembers.push({
+    id: nextPCId++, name, cls, hp: maxhp, maxhp, focus: maxFocus, maxFocus,
+    hero, maxHero: 3, ac, perc, saves: { fort, ref, will }
+  });
+  closeAddPCModal();
+  renderParty();
+  renderCombat();
+  toast('Added: ' + name);
+}
+
+function renderParty() {
+  const grid = document.getElementById('party-grid');
+  if (!grid) return;
+  grid.innerHTML = partyMembers.map(pc => {
+    const hpPct = Math.max(0, (pc.hp / pc.maxhp) * 100);
+    const focusPct = pc.maxFocus > 0 ? (pc.focus / pc.maxFocus) * 100 : 0;
+    const heroPips = Array.from({length: pc.maxHero}, (_, i) =>
+      `<div class="pip ${i < pc.hero ? 'filled' : ''}" onclick="toggleHero(${pc.id},${i})"></div>`
+    ).join('');
+    const fmtS = v => typeof v === 'number' ? (v >= 0 ? '+' + v : '' + v) : '+0';
+
+    return `
+    <div class="pc-card">
+      <div class="pc-card-header">
+        <div style="flex:1;min-width:0">
+          <input type="text" value="${pc.name}" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text-bright);font-family:'Cinzel',serif;font-size:14px;width:100%;padding:0 0 2px" onchange="updatePCStat(${pc.id},'name',this.value)" title="Edit name">
+          <input type="text" value="${pc.cls}" style="background:transparent;border:none;color:var(--text-dim);font-size:11px;font-style:italic;width:100%;margin-top:2px" onchange="updatePCStat(${pc.id},'cls',this.value)" title="Edit class">
+        </div>
+        <button class="icon-btn danger" onclick="removePC(${pc.id})" style="margin-left:8px;flex-shrink:0">✕</button>
+      </div>
+      <div class="pc-card-body">
+
+        <div class="resource-row">
+          <div class="resource-label">HP</div>
+          <div class="resource-bar-wrap"><div class="resource-bar bar-hp" style="width:${hpPct}%"></div></div>
+          <div class="resource-nums" style="display:flex;align-items:center;gap:4px">
+            <input type="number" value="${pc.hp}" min="0" style="width:44px;padding:3px 4px;font-size:13px;text-align:center;background:var(--bg2);border:1px solid var(--border);color:var(--green-bright)" onchange="updatePCStatAndRefresh(${pc.id},'hp',this.value)" title="Current HP">
+            <span style="color:var(--text-dim)">/</span>
+            <input type="number" value="${pc.maxhp}" min="1" style="width:44px;padding:3px 4px;font-size:13px;text-align:center;background:var(--bg2);border:1px solid var(--border);color:var(--text-dim)" onchange="updatePCStatAndRefresh(${pc.id},'maxhp',this.value)" title="Max HP">
+          </div>
+        </div>
+
+        ${pc.maxFocus > 0 ? `
+        <div class="resource-row">
+          <div class="resource-label">Focus</div>
+          <div class="resource-bar-wrap"><div class="resource-bar bar-focus" style="width:${focusPct}%"></div></div>
+          <div class="resource-nums" style="display:flex;align-items:center;gap:4px">
+            <input type="number" value="${pc.focus}" min="0" max="${pc.maxFocus}" style="width:34px;padding:3px 4px;font-size:13px;text-align:center;background:var(--bg2);border:1px solid var(--border);color:#9b59b6" onchange="updatePCStat(${pc.id},'focus',this.value)" title="Current Focus">
+            <span style="color:var(--text-dim)">/ ${pc.maxFocus}</span>
+          </div>
+        </div>` : ''}
+
+        <div class="resource-row">
+          <div class="resource-label">Hero Pts</div>
+          <div class="pips">${heroPips}</div>
+        </div>
+
+        <div class="pc-stats" style="margin-top:10px;grid-template-columns:repeat(5,1fr)">
+          <div class="pc-stat">
+            <input type="number" value="${pc.ac}" min="1" style="width:100%;text-align:center;background:var(--bg2);border:1px solid var(--border);color:var(--blue-bright);font-family:'Share Tech Mono',monospace;font-size:14px;padding:3px 2px" onchange="updatePCStatAndRefresh(${pc.id},'ac',this.value)" title="AC">
+            <div class="l">AC</div>
+          </div>
+          <div class="pc-stat">
+            <input type="number" value="${pc.perc !== undefined ? pc.perc : 0}" style="width:100%;text-align:center;background:var(--bg2);border:1px solid var(--border);color:var(--gold);font-family:'Share Tech Mono',monospace;font-size:14px;padding:3px 2px" onchange="updatePCStatAndRefresh(${pc.id},'perc',this.value)" title="Perception">
+            <div class="l">Perc</div>
+          </div>
+          <div class="pc-stat">
+            <input type="number" value="${pc.saves ? pc.saves.fort : 0}" style="width:100%;text-align:center;background:var(--bg2);border:1px solid var(--border);color:#e67e22;font-family:'Share Tech Mono',monospace;font-size:14px;padding:3px 2px" onchange="updatePCSave(${pc.id},'fort',this.value)" title="Fortitude">
+            <div class="l">Fort</div>
+          </div>
+          <div class="pc-stat">
+            <input type="number" value="${pc.saves ? pc.saves.ref : 0}" style="width:100%;text-align:center;background:var(--bg2);border:1px solid var(--border);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:14px;padding:3px 2px" onchange="updatePCSave(${pc.id},'ref',this.value)" title="Reflex">
+            <div class="l">Ref</div>
+          </div>
+          <div class="pc-stat">
+            <input type="number" value="${pc.saves ? pc.saves.will : 0}" style="width:100%;text-align:center;background:var(--bg2);border:1px solid var(--border);color:#9b59b6;font-family:'Share Tech Mono',monospace;font-size:14px;padding:3px 2px" onchange="updatePCSave(${pc.id},'will',this.value)" title="Will">
+            <div class="l">Will</div>
+          </div>
+        </div>
+
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text-dim);text-align:center;padding:20px;font-style:italic">No party members. Click + ADD PC.</div>';
+}
+
+function updatePCStat(id, stat, val) {
+  const pc = partyMembers.find(p => p.id === id);
+  if (!pc) return;
+  if (stat === 'name' || stat === 'cls') { pc[stat] = val; }
+  else { pc[stat] = parseInt(val) || 0; }
+}
+
+function updatePCStatAndRefresh(id, stat, val) {
+  updatePCStat(id, stat, val);
+  // Sync combat tracker stats too
+  const c = combatants.find(x => x.pcId === id);
+  if (c) {
+    if (stat === 'maxhp') c.maxhp = parseInt(val) || c.maxhp;
+    if (stat === 'ac') c.ac = parseInt(val) || c.ac;
+  }
+  renderParty();
+  renderCombat();
+}
+
+function updatePCSave(id, save, val) {
+  const pc = partyMembers.find(p => p.id === id);
+  if (!pc) return;
+  if (!pc.saves) pc.saves = { fort: 0, ref: 0, will: 0 };
+  pc.saves[save] = parseInt(val) || 0;
+  // Sync to combat tracker
+  const c = combatants.find(x => x.pcId === id);
+  if (c) { if (!c.saves) c.saves = {}; c.saves[save] = pc.saves[save]; }
+}
+
+function toggleHero(pcId, idx) {
+  const pc = partyMembers.find(p => p.id === pcId);
+  if (!pc) return;
+  pc.hero = (pc.hero === idx + 1) ? idx : idx + 1;
+  renderParty();
+}
+
+function removePC(id) {
+  partyMembers = partyMembers.filter(p => p.id !== id);
+  combatants = combatants.filter(c => c.type !== 'pc' || partyMembers.find(p => p.id === c.pcId));
+  renderParty();
+  renderCombat();
+}
+
+// ===================== CONDITIONS =====================
+const CONDITIONS_DATA = [
+  { name: 'Blinded', cat: 'penalized', desc: 'Cannot see. −4 to Perception, auto-fail sight checks. Flat-footed to all enemies.', value: null },
+  { name: 'Broken', cat: 'physical', desc: 'Object reduced past its Broken Threshold. Cannot be used effectively.', value: null },
+  { name: 'Clumsy', cat: 'penalized', desc: 'Penalty to AC, Ref saves, and Dex-based checks.', value: '1-4' },
+  { name: 'Concealed', cat: 'special', desc: 'Attackers must succeed at DC 5 flat check to affect you.', value: null },
+  { name: 'Confused', cat: 'mental', desc: 'Attack nearest creature (ally or enemy) each round with a basic Strike.', value: null },
+  { name: 'Controlled', cat: 'mental', desc: 'Another creature directs your actions.', value: null },
+  { name: 'Dazzled', cat: 'penalized', desc: 'Everything is concealed from you.', value: null },
+  { name: 'Deafened', cat: 'penalized', desc: 'Cannot hear. −2 Perception (sound). −2 to initiative. Flat check for spells with verbal components.', value: null },
+  { name: 'Doomed', cat: 'special', desc: 'Max Dying value reduced by this value. Immediately die if Dying threshold is met.', value: '1-3' },
+  { name: 'Drained', cat: 'penalized', desc: 'Penalty to Fort saves and Con-based checks. Reduce max HP.', value: '1-4' },
+  { name: 'Dying', cat: 'penalized', desc: 'Unconscious and near death. At 4+ (or max), you die. Must make recovery checks.', value: '1-4' },
+  { name: 'Encumbered', cat: 'movement', desc: 'Carrying too much. −10 Speed, −1 to Str/Dex checks and DCs.', value: null },
+  { name: 'Enfeebled', cat: 'penalized', desc: 'Penalty to Str-based attack rolls, damage, and checks.', value: '1-4' },
+  { name: 'Fascinated', cat: 'mental', desc: 'Focused on one target. −2 Perception/skill checks unrelated to that target.', value: null },
+  { name: 'Fatigued', cat: 'penalized', desc: '−1 AC and saves. Cannot use exploration activities requiring physical exertion.', value: null },
+  { name: 'Flat-Footed', cat: 'penalized', desc: '−2 AC. Also called Off-Guard in newer printings.', value: null },
+  { name: 'Fleeing', cat: 'movement', desc: 'Must spend each action moving away from source. Cannot willingly approach.', value: null },
+  { name: 'Frightened', cat: 'mental', desc: 'Penalty to all checks and DCs. Reduces by 1 at end of each turn.', value: '1-4' },
+  { name: 'Grabbed', cat: 'movement', desc: 'Immobilized, flat-footed. Held by another creature or effect.', value: null },
+  { name: 'Hidden', cat: 'special', desc: 'Observers know your location but can\'t see you. Flat check DC 11 to target.', value: null },
+  { name: 'Immobilized', cat: 'movement', desc: 'Cannot use actions with Move trait. Cannot leave current space.', value: null },
+  { name: 'Invisible', cat: 'beneficial', desc: 'Cannot be seen. All enemies are flat-footed to you. Flat check DC 11 for enemies.', value: null },
+  { name: 'Observed', cat: 'special', desc: 'Visible and being watched. Default state in combat.', value: null },
+  { name: 'Off-Guard', cat: 'penalized', desc: '−2 AC (same as Flat-Footed, newer terminology).', value: null },
+  { name: 'Paralyzed', cat: 'penalized', desc: 'Cannot act. Flat-footed. Failed Fort save frees condition at end of each turn.', value: null },
+  { name: 'Petrified', cat: 'penalized', desc: 'Turned to stone. Completely unable to act. Object immunities.', value: null },
+  { name: 'Prone', cat: 'movement', desc: '−2 melee attack rolls. Enemies get +2 to hit in melee. −4 to ranged attacks. Stand up costs 1 action (triggers AoO).', value: null },
+  { name: 'Quickened', cat: 'beneficial', desc: 'Gain 1 extra action each turn that can only be used for certain actions.', value: null },
+  { name: 'Restrained', cat: 'movement', desc: 'Immobilized and flat-footed. Worse than grabbed.', value: null },
+  { name: 'Sickened', cat: 'penalized', desc: 'Penalty to all checks and DCs. Retch action to end condition.', value: '1-4' },
+  { name: 'Slowed', cat: 'movement', desc: 'Lose actions at start of turn equal to value. At 3, cannot act.', value: '1-3' },
+  { name: 'Stunned', cat: 'penalized', desc: 'Lose actions equal to value at start of turn. Reduces by 1 each turn.', value: '1-4' },
+  { name: 'Stupefied', cat: 'mental', desc: 'Penalty to Int, Wis, Cha checks, DCs, and spell attack rolls. Flat check to cast.', value: '1-4' },
+  { name: 'Unconscious', cat: 'penalized', desc: 'Helpless. Flat-footed, blinded, −4 Perception. Dying condition often applies.', value: null },
+  { name: 'Undetected', cat: 'special', desc: 'Cannot be perceived at all. Enemies don\'t know your location.', value: null },
+  { name: 'Wounded', cat: 'special', desc: 'Each time you recover from dying, wounded increases. Raises dying threshold.', value: '1-3' },
+  // ── Starfinder 2e Exclusive Conditions ──
+  { name: 'Glitching', cat: 'sf2', desc: 'Applies to constructs, androids, and tech. Malfunction penalty to all d20 rolls equal to the value. On a crit fail, the item or ability used malfunctions and cannot be used until repaired.', value: '1-4' },
+  { name: 'Suppressed', cat: 'sf2', desc: 'Your magical or technological abilities are partially shut down. Spells and tech actions require a DC 5 flat check to activate. On failure the action is wasted.', value: null },
+  { name: 'Untethered', cat: 'sf2', desc: 'Drifting in zero-g or cut off from normal physics anchoring. Cannot take Stride or Step actions normally; must use Athletics (DC 15) to maneuver. Off-guard until condition ends.', value: null },
+];
+
+// Map: condition base name → function(value) → { ac, ref, fort, will } penalties (negative = penalty)
+const CONDITION_EFFECTS = {
+  'Clumsy':      v => ({ ac: -v, ref: -v }),
+  'Enfeebled':   v => ({}),  // penalty to Str attacks/damage, tracked narratively
+  'Drained':     v => ({ fort: -v }),
+  'Frightened':  v => ({ ac: -v, fort: -v, ref: -v, will: -v }),
+  'Sickened':    v => ({ ac: -v, fort: -v, ref: -v, will: -v }),
+  'Stupefied':   v => ({ will: -v }),
+  'Fatigued':    v => ({ ac: -1, fort: -1, ref: -1, will: -1 }),
+  'Flat-Footed': v => ({ ac: -2 }),
+  'Off-Guard':   v => ({ ac: -2 }),
+  'Grabbed':     v => ({ ac: -2 }),  // grabbed = flat-footed
+  'Restrained':  v => ({ ac: -2 }),  // restrained = flat-footed
+  'Glitching':   v => ({ ac: -v, fort: -v, ref: -v, will: -v }),
+};
+
+// Compute total stat modifiers from all active conditions on a combatant
+function getConditionMods(combatant) {
+  const mods = { ac: 0, fort: 0, ref: 0, will: 0 };
+  (combatant.conditions || []).forEach(cond => {
+    const match = cond.match(/^(.+?)\s+(\d+)$/);
+    const base  = match ? match[1] : cond;
+    const val   = match ? parseInt(match[2]) : 1;
+    const fn = CONDITION_EFFECTS[base];
+    if (fn) {
+      const delta = fn(val);
+      if (delta.ac)   mods.ac   += delta.ac;
+      if (delta.fort) mods.fort += delta.fort;
+      if (delta.ref)  mods.ref  += delta.ref;
+      if (delta.will) mods.will += delta.will;
+    }
+  });
+  return mods;
+}
+
+function renderConditions(filter = '') {
+  const grid = document.getElementById('cond-grid');
+  const filtered = filter ? CONDITIONS_DATA.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()) || c.desc.toLowerCase().includes(filter.toLowerCase())) : CONDITIONS_DATA;
+
+  grid.innerHTML = filtered.map(c => `
+    <div class="condition-card cat-${c.cat}" onclick="copyCondition('${c.name}')">
+      <div class="condition-name">${c.name}</div>
+      <div class="condition-desc">${c.desc}</div>
+      ${c.value ? `<div class="condition-value">VALUE: ${c.value}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function filterConditions(val) { renderConditions(val); }
+
+function copyCondition(name) {
+  toast(name + ' — click combat to apply');
+}
+
+
+// ===================== DC TABLE =====================
+function buildDCTable() {
+  // Level DC table from PF2e CRB
+  const dcByLevel = [
+    [0,10,14,16,20,24],
+    [1,15,17,19,23,27],
+    [2,16,18,20,24,28],
+    [3,18,20,22,26,30],
+    [4,19,21,23,27,31],
+    [5,20,22,24,28,32],
+    [6,22,24,26,30,34],
+    [7,23,25,27,31,35],
+    [8,24,26,28,32,36],
+    [9,26,28,30,34,38],
+    [10,27,29,31,35,39],
+    [11,28,30,32,36,40],
+    [12,30,32,34,38,42],
+    [13,31,33,35,39,43],
+    [14,32,34,36,40,44],
+    [15,34,36,38,42,46],
+    [16,35,37,39,43,47],
+    [17,36,38,40,44,48],
+    [18,38,40,42,46,50],
+    [19,39,41,43,47,51],
+    [20,40,42,44,48,52],
+  ];
+
+  const body = document.getElementById('dc-table-body');
+  body.innerHTML = dcByLevel.map(row => `
+    <tr>
+      <td>${row[0]}</td>
+      ${row.slice(1).map(dc => `<td class="dc-val">${dc}</td>`).join('')}
+    </tr>
+  `).join('');
+}
+
+// ===================== NOTES (removed) =====================
+
+// ===================== MUSIC =====================
+let musicPlaylists = [];
+let musicFilter = 'all';
+let musicEditMode = false;
+
+function loadMusicPlaylists() {
+  try {
+    const stored = localStorage.getItem('samwise-playlists');
+    musicPlaylists = stored ? JSON.parse(stored) : [];
+  } catch(e) {
+    musicPlaylists = [];
+  }
+  renderPlaylists();
+}
+
+function saveMusicPlaylists() {
+  try {
+    localStorage.setItem('samwise-playlists', JSON.stringify(musicPlaylists));
+  } catch(e) {
+    console.warn('localStorage not available');
+  }
+}
+
+function extractSpotifyId(url) {
+  // Handles:
+  // https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
+  // spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
+  const patterns = [
+    /open\.spotify\.com\/playlist\/([a-zA-Z0-9]+)/,
+    /spotify:playlist:([a-zA-Z0-9]+)/,
+  ];
+  for (const pat of patterns) {
+    const m = url.match(pat);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function toggleAddForm() {
+  const form = document.getElementById('add-playlist-form');
+  const btn  = document.getElementById('add-form-toggle');
+  const collapsed = form.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '+ ADD PLAYLIST' : '✕ CANCEL';
+  if (!collapsed) {
+    document.getElementById('pl-name').value = '';
+    document.getElementById('pl-url').value = '';
+    setTimeout(() => document.getElementById('pl-name').focus(), 50);
+  }
+}
+
+function savePlaylist() {
+  const name = document.getElementById('pl-name').value.trim();
+  const url  = document.getElementById('pl-url').value.trim();
+  const cat  = document.getElementById('pl-cat').value;
+
+  if (!name) { toast('Please enter a playlist name'); return; }
+  if (!url)  { toast('Please paste a Spotify URL'); return; }
+
+  const id = extractSpotifyId(url);
+  if (!id) {
+    toast('Could not parse Spotify URL — make sure it\'s a playlist link');
+    return;
+  }
+
+  musicPlaylists.push({ id: Date.now(), name, cat, spotifyId: id });
+  saveMusicPlaylists();
+  toggleAddForm();
+  renderPlaylists();
+  toast('Playlist saved: ' + name);
+}
+
+function deletePlaylist(plId) {
+  musicPlaylists = musicPlaylists.filter(p => p.id !== plId);
+  saveMusicPlaylists();
+  renderPlaylists();
+  toast('Playlist removed');
+}
+
+function filterMusic(cat, btn) {
+  musicFilter = cat;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderPlaylists();
+}
+
+function toggleEditMode() {
+  musicEditMode = !musicEditMode;
+  const btn = document.getElementById('edit-mode-btn');
+  btn.textContent = musicEditMode ? '✔ DONE' : '✎ EDIT';
+  btn.style.borderColor = musicEditMode ? 'var(--green)' : '';
+  btn.style.color = musicEditMode ? 'var(--green-bright)' : '';
+  renderPlaylists();
+}
+
+const CAT_LABELS = {
+  combat: 'Combat', exploration: 'Exploration', ambient: 'Ambient',
+  tavern: 'Tavern', boss: 'Boss Fight', other: 'Other'
+};
+
+function renderPlaylists() {
+  const grid = document.getElementById('playlist-grid');
+  if (!grid) return;
+
+  const editBtn = document.getElementById('edit-mode-btn');
+  if (editBtn) editBtn.style.display = musicPlaylists.length > 0 ? '' : 'none';
+
+  const visible = musicFilter === 'all'
+    ? musicPlaylists
+    : musicPlaylists.filter(p => p.cat === musicFilter);
+
+  if (visible.length === 0) {
+    grid.innerHTML = `<div class="music-empty">
+      <div class="music-empty-icon">🎵</div>
+      <div style="font-size:15px;margin-bottom:6px">${musicPlaylists.length === 0 ? 'No playlists yet' : 'No playlists in this category'}</div>
+      <div style="font-size:13px">${musicPlaylists.length === 0 ? 'Click <strong style="color:var(--gold)">+ ADD PLAYLIST</strong> to get started' : 'Try selecting a different category above'}</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = visible.map(pl => {
+    const embedUrl = `https://open.spotify.com/embed/playlist/${pl.spotifyId}?utm_source=generator&theme=0`;
+    const deleteBtn = musicEditMode
+      ? `<button class="icon-btn danger" onclick="deletePlaylist(${pl.id})" title="Remove playlist" style="flex-shrink:0">✕</button>`
+      : '';
+    return `
+    <div class="playlist-card">
+      <div class="playlist-card-header">
+        <div class="playlist-card-title" title="${pl.name}">${pl.name}</div>
+        <span class="playlist-cat-badge ${pl.cat}">${CAT_LABELS[pl.cat] || pl.cat}</span>
+        ${deleteBtn}
+      </div>
+      <iframe class="playlist-embed" src="${embedUrl}" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    </div>`;
+  }).join('');
+}
+
+// ===================== BESTIARY =====================
+
+// ── OGL Compendium (PF2e SRD / OGL-licensed creatures) ──
+const OGL_BESTIARY = [
+  { name:"Goblin Warrior", level:1, type:"Humanoid, Goblin", ac:16, hp:12, init:5, perc:5, fort:5, ref:7, will:3, speed:"25 ft.", traits:["Small","Humanoid"],
+    actions:["Jaws +7, 1d6 piercing","Dogslicer +7, 1d6 slashing (agile, finesse)"],
+    special:["Goblin Scuttle (reaction): Step when an ally moves adjacent"] },
+  { name:"Goblin Commando", level:2, type:"Humanoid, Goblin", ac:18, hp:26, init:7, perc:7, fort:7, ref:9, will:5, speed:"25 ft.", traits:["Small","Humanoid"],
+    actions:["Dogslicer +10, 1d6+2 slashing (agile, finesse)","Shortbow +10 (range 60 ft.), 1d6 piercing"],
+    special:["Goblin Scuttle","Sneak Attack 1d6"] },
+  { name:"Skeleton Guard", level:1, type:"Undead, Mindless", ac:16, hp:16, init:5, perc:5, fort:5, ref:7, will:3, speed:"25 ft.", traits:["Undead","Mindless"],
+    actions:["Scimitar +7, 1d6+1 slashing","Claw +7, 1d4+1 slashing"],
+    special:["Immunities: death, disease, mental, paralysis, poison, unconscious","Resistances: cold 5, electricity 5, fire 5, piercing 5, slashing 5"] },
+  { name:"Zombie Shambler", level:1, type:"Undead, Mindless", ac:13, hp:20, init:0, perc:0, fort:6, ref:0, will:3, speed:"25 ft.", traits:["Undead","Mindless"],
+    actions:["Fist +7, 1d6+3 bludgeoning","Jaws +7, 1d8+3 piercing (reach)"],
+    special:["Slow 1 (permanently slowed 1)","Immunities: death, disease, mental, paralysis, poison, unconscious"] },
+  { name:"Giant Rat", level:0, type:"Animal", ac:14, hp:8, init:4, perc:4, fort:4, ref:6, will:2, speed:"30 ft., climb 10 ft.", traits:["Animal"],
+    actions:["Jaws +6, 1d6 piercing"],
+    special:["Darkvision","Disease (Filth Fever on bite, DC 12 Fort)"] },
+  { name:"Wolf", level:1, type:"Animal", ac:15, hp:20, init:7, perc:7, fort:6, ref:5, will:3, speed:"35 ft.", traits:["Animal"],
+    actions:["Jaws +7, 1d6+2 piercing — Trip on hit"],
+    special:["Pack Attack: +1d4 damage if ally adjacent to target"] },
+  { name:"Giant Spider", level:1, type:"Animal", ac:15, hp:17, init:6, perc:6, fort:5, ref:7, will:3, speed:"25 ft., climb 25 ft.", traits:["Animal"],
+    actions:["Fangs +7, 1d6+2 piercing + Venom","Web (◆◆) — Ranged touch +7, target Grabbed on hit"],
+    special:["Spider Venom: DC 15 Fort, 1d4 poison / round for 6 rounds"] },
+  { name:"Orc Warrior", level:1, type:"Humanoid, Orc", ac:15, hp:18, init:5, perc:5, fort:7, ref:4, will:3, speed:"25 ft.", traits:["Humanoid"],
+    actions:["Falchion +7, 1d10+3 slashing (forceful, sweep)","Javelin +4 (range 30 ft.), 1d6+3 piercing"],
+    special:["Ferocity (reaction): survive one killing blow at 1 HP once/day"] },
+  { name:"Orc Brute", level:3, type:"Humanoid, Orc", ac:17, hp:45, init:6, perc:6, fort:10, ref:6, will:5, speed:"25 ft.", traits:["Humanoid"],
+    actions:["Greataxe +11, 1d12+6 slashing (sweep)","Javelin +6 (range 30 ft.), 1d6+6 piercing"],
+    special:["Ferocity","Knockdown: on critical hit, target is knocked prone"] },
+  { name:"Bandit", level:2, type:"Humanoid, Human", ac:17, hp:28, init:8, perc:8, fort:7, ref:9, will:5, speed:"25 ft.", traits:["Humanoid"],
+    actions:["Shortsword +9, 1d6+3 piercing (agile, finesse, versatile S)","Shortbow +9 (range 60 ft.), 1d6+1 piercing"],
+    special:["Sneak Attack 1d6","Gang Up: flanking with any ally"] },
+  { name:"Drow Warrior", level:2, type:"Humanoid, Elf", ac:18, hp:24, init:8, perc:8, fort:5, ref:8, will:7, speed:"30 ft.", traits:["Humanoid","Elf"],
+    actions:["Rapier +9, 1d6+3 piercing (deadly d8, disarm, finesse)","Hand Crossbow +9 (range 60 ft.), 1d6 piercing + Poison"],
+    special:["Darkvision","Drow Poison: DC 17 Fort, Slowed 1 / Unconscious"] },
+  { name:"Gnoll Hunter", level:2, type:"Humanoid, Gnoll", ac:17, hp:27, init:7, perc:7, fort:8, ref:7, will:5, speed:"25 ft.", traits:["Humanoid"],
+    actions:["Jaws +9, 1d6+3 piercing","Spear +9, 1d6+3 piercing (thrown 20 ft.)"],
+    special:["Pack Attack: +1d4 damage with ally adjacent"] },
+  { name:"Kobold Scout", level:1, type:"Humanoid, Kobold", ac:16, hp:10, init:8, perc:8, fort:4, ref:8, will:5, speed:"25 ft.", traits:["Small","Humanoid"],
+    actions:["Crossbow +7 (range 120 ft.), 1d8 piercing","Shortsword +7, 1d6 piercing (agile, finesse, versatile S)"],
+    special:["Sneak Attack 1d6","Trap Setter: creates spike traps (DC 15, 1d4 piercing)"] },
+  { name:"Dire Wolf", level:3, type:"Animal", ac:19, hp:42, init:9, perc:9, fort:10, ref:8, will:5, speed:"35 ft.", traits:["Animal","Large"],
+    actions:["Jaws +12, 1d10+5 piercing — Trip on hit"],
+    special:["Pack Attack","Knockdown on critical hit"] },
+  { name:"Giant Centipede", level:1, type:"Animal", ac:15, hp:15, init:6, perc:6, fort:6, ref:6, will:2, speed:"30 ft., climb 30 ft.", traits:["Animal"],
+    actions:["Mandibles +7, 1d6+1 piercing + Poison"],
+    special:["Venom: DC 15 Fort, Clumsy 1 / 6 rounds","Darkvision"] },
+  { name:"Ogre", level:3, type:"Giant", ac:17, hp:50, init:4, perc:4, fort:10, ref:5, will:5, speed:"35 ft.", traits:["Humanoid","Giant","Large"],
+    actions:["Greatclub +10 (reach 10 ft.), 1d10+7 bludgeoning","Rock +7 (range 60 ft.), 2d6+7 bludgeoning"],
+    special:["Catch Rock (reaction)","Low-light vision"] },
+  { name:"Troll", level:5, type:"Giant", ac:19, hp:90, init:8, perc:8, fort:14, ref:10, will:8, speed:"30 ft.", traits:["Humanoid","Giant","Large"],
+    actions:["Claw +14, 1d8+7 slashing","Jaws +14, 2d6+7 piercing","Rend: two claw hits on same target — extra claw damage"],
+    special:["Regeneration 15 (disabled by acid or fire)","Darkvision"] },
+  { name:"Hill Giant", level:7, type:"Giant", ac:22, hp:130, init:11, perc:11, fort:16, ref:12, will:11, speed:"35 ft.", traits:["Humanoid","Giant","Large"],
+    actions:["Greatclub +19 (reach 10 ft.), 2d10+10 bludgeoning","Rock +14 (range 80 ft.), 2d8+10 bludgeoning"],
+    special:["Catch Rock","Rock Throw"] },
+  { name:"Young Red Dragon", level:10, type:"Dragon, Fire", ac:29, hp:175, init:18, perc:18, fort:21, ref:17, will:19, speed:"40 ft., fly 80 ft.", traits:["Dragon","Fire","Large"],
+    actions:["Jaws +23, 2d10+11 piercing + 1d6 fire","Claw +23, 2d6+11 slashing (agile)","Tail +21, 2d8+9 bludgeoning (reach 10 ft.)","Breath Weapon (◆◆) 15d6 fire in 40-foot cone, DC 28 Ref — recharge 1d4 rounds"],
+    special:["Frightful Presence (DC 27 Will, 90 feet)","Immunities: fire, paralysis, sleep","Weaknesses: cold 10"] },
+  { name:"Adult Red Dragon", level:14, type:"Dragon, Fire", ac:36, hp:265, init:24, perc:24, fort:27, ref:23, will:25, speed:"50 ft., fly 120 ft.", traits:["Dragon","Fire","Huge"],
+    actions:["Jaws +29, 3d10+15 piercing + 2d6 fire","Claw +29, 3d6+15 slashing (agile)","Tail +27, 3d8+13 bludgeoning (reach 15 ft.)","Wing +27, 2d8+13 bludgeoning (reach 10 ft.)","Breath Weapon (◆◆) 20d6 fire in 50-foot cone, DC 34 Ref"],
+    special:["Frightful Presence (DC 32 Will, 90 feet)","Dragon Heat: 4d6 fire to adjacent creatures (DC 30 Ref)","Immunities: fire, paralysis, sleep","Weaknesses: cold 15"] },
+  { name:"Ancient Red Dragon", level:19, type:"Dragon, Fire", ac:45, hp:425, init:33, perc:33, fort:34, ref:30, will:32, speed:"60 ft., fly 140 ft.", traits:["Dragon","Fire","Gargantuan"],
+    actions:["Jaws +37, 4d12+20 piercing + 3d6 fire","Claw +37, 4d8+20 slashing (agile)","Tail +35, 4d10+18 bludgeoning (reach 20 ft.)","Breath Weapon (◆◆) 25d6 fire in 60-foot cone, DC 41 Ref"],
+    special:["Frightful Presence (DC 39 Will, 120 feet)","Immunities: fire, paralysis, sleep","Weaknesses: cold 20"] },
+  { name:"Vampire", level:7, type:"Undead, Vampire", ac:25, hp:95, init:15, perc:15, fort:13, ref:15, will:15, speed:"25 ft., climb 25 ft.", traits:["Undead","Vampire"],
+    actions:["Claw +18, 2d8+8 slashing — Grab","Drink Blood (◆◆): Grabbed target — 2d6 damage, Drained 1"],
+    special:["Dominate (◆◆, visual): DC 22 Will","Vampire Weaknesses: garlic, holy water, stake through heart (Coup de Grace)","Regeneration 20 (disabled by sunlight or fire)","Mist Form (◆◆): Gaseous form, fly 30 ft.","Darkvision","Immunities: disease, paralysis, poison, sleep"] },
+  { name:"Lich", level:12, type:"Undead, Wizard", ac:33, hp:185, init:21, perc:21, fort:20, ref:22, will:24, speed:"25 ft.", traits:["Undead"],
+    actions:["Staff +22, 1d8+7 bludgeoning (two-hand d12)","Paralyzing Touch +22, 7d6 negative + Paralyzed (DC 30 Fort)","Disintegrate (◆◆◆) spell +22, 12d10 force, DC 30 Ref"],
+    special:["Phylactery: Destroyed lich reforms in 1d10 days unless phylactery is destroyed","Spells: disintegrate, finger of death, 4x power word stun, chain lightning, feeblemind","Immunities: death, disease, mental, paralysis, poison, unconscious","Rejuvenation","Darkvision"] },
+  { name:"Wraith", level:6, type:"Undead, Incorporeal", ac:22, hp:70, init:14, perc:14, fort:11, ref:14, will:13, speed:"fly 40 ft.", traits:["Undead","Incorporeal"],
+    actions:["Corruption Touch +16, 2d8+5 negative + Drained 1","Life Drain (◆◆): DC 23 Fort, 3d8 negative + Drained 1 on fail"],
+    special:["Sunlight Powerlessness: Stunned 1 and cannot use reactions in sunlight","Spawn Wraith: humanoid killed by Drained becomes a wraith spawn","Immunities: death, disease, paralysis, poison, unconscious","Incorporeal: pass through solid matter, 50% chance non-magical weapons miss"] },
+  { name:"Ghoul", level:2, type:"Undead", ac:17, hp:30, init:8, perc:8, fort:7, ref:10, will:7, speed:"30 ft., burrow 5 ft.", traits:["Undead"],
+    actions:["Jaws +10, 1d6+2 piercing + Ghoul Fever + Paralysis","Claw +10, 1d4+2 slashing (agile) + Paralysis"],
+    special:["Ghoul Fever: DC 15 Fort, Drained 1","Paralysis: DC 15 Fort or Paralyzed 1 round (elves immune)","Darkvision"] },
+  { name:"Flesh Golem", level:8, type:"Construct", ac:26, hp:135, init:12, perc:12, fort:17, ref:13, will:13, speed:"25 ft.", traits:["Construct","Mindless"],
+    actions:["Fist +20 (reach 10 ft.), 2d8+9 bludgeoning","Berserk Slam +20 (berserk only), 2d8+11 bludgeoning"],
+    special:["Berserk: at ≤68 HP rolls d20 each turn — on 1 goes Berserk attacking nearest","Immunities: death, disease, healing, mental, nonlethal, paralysis, poison, unconscious","Resistances: physical 5 (except adamantine)","Electricity Vulnerability: Healed by electricity damage","Quickened by haste spells"] },
+  { name:"Stone Golem", level:11, type:"Construct", ac:33, hp:185, init:16, perc:16, fort:22, ref:17, will:19, speed:"20 ft.", traits:["Construct","Mindless","Large"],
+    actions:["Fist +24 (reach 10 ft.), 2d10+12 bludgeoning","Foot Stomp (◆◆): 3d10+12 bludgeoning in 10-foot burst, DC 28 Ref for half"],
+    special:["Slow (◆◆): 50-foot emanation, DC 28 Fort or Slowed 1 for 1 minute","Immunities: all mental, death, disease, healing, paralysis, poison","Resistances: all physical 10 (except adamantine)"] },
+  { name:"Fire Elemental", level:5, type:"Elemental, Fire", ac:20, hp:60, init:12, perc:12, fort:10, ref:12, will:9, speed:"50 ft.", traits:["Elemental","Fire"],
+    actions:["Tendril +14, 2d6+5 fire","Explosive Burst (◆◆◆): DC 23 Ref, 6d6 fire in 15-foot burst"],
+    special:["Immunities: bleed, fire, paralysis, poison, stun","Weaknesses: cold 10","Burn: 1d6 persistent fire on hit","Light Emission: sheds bright light 10 ft., dim 20 ft."] },
+  { name:"Water Elemental", level:5, type:"Elemental, Water", ac:22, hp:75, init:10, perc:10, fort:14, ref:12, will:10, speed:"30 ft., swim 60 ft.", traits:["Elemental","Water","Large"],
+    actions:["Wave +14, 2d8+7 bludgeoning — Knockdown","Vortex (◆◆◆): DC 23 Ref in 20-foot emanation, 3d8 bludgeoning + Grabbed"],
+    special:["Immunities: bleed, paralysis, poison, stun","Resistances: fire 5","Freeze: in freezing water, gains +2 AC and Regeneration 5"] },
+  { name:"Earth Elemental", level:5, type:"Elemental, Earth", ac:22, hp:80, init:8, perc:8, fort:15, ref:8, will:10, speed:"20 ft., burrow 20 ft.", traits:["Elemental","Earth","Large"],
+    actions:["Fist +14 (reach 10 ft.), 2d8+8 bludgeoning — Knockdown"],
+    special:["Immunities: bleed, paralysis, poison, stun","Resistances: physical 5","Earth Glide: move through earthen terrain without speed penalty","Tremorsense 60 ft."] },
+  { name:"Air Elemental", level:5, type:"Elemental, Air", ac:22, hp:55, init:15, perc:15, fort:10, ref:14, will:10, speed:"fly 60 ft.", traits:["Elemental","Air"],
+    actions:["Gust +14, 2d8+5 bludgeoning — Push 10 ft.","Whirlwind (◆◆◆): DC 23 Ref in 20-foot column, 4d8 bludgeoning + Grabbed 1 round"],
+    special:["Immunities: bleed, paralysis, poison, stun","Resistances: electricity 5","Darkvision"] },
+  { name:"Imp", level:1, type:"Fiend, Devil", ac:16, hp:15, init:7, perc:7, fort:5, ref:7, will:5, speed:"20 ft., fly 30 ft.", traits:["Fiend","Devil","Tiny"],
+    actions:["Stinger +7, 1d4 piercing + Venom","Polymorph (◆◆): become rat, raven, or spider"],
+    special:["Venom: DC 15 Fort, Slowed 1","Invisibility (◆)","Resistances: fire 5, physical 3 (except silver or good)","Immunities: fire (self only via hellfire)"] },
+  { name:"Quasit", level:1, type:"Fiend, Demon", ac:15, hp:14, init:7, perc:7, fort:5, ref:7, will:5, speed:"20 ft., fly 30 ft.", traits:["Fiend","Demon","Tiny"],
+    actions:["Claw +7, 1d4 piercing + Venom (agile)","Sow Fear (◆◆): DC 15 Will in 30-foot emanation, Frightened 2 on fail"],
+    special:["Venom: DC 15 Fort, Enfeebled 1","Invisibility (◆)","Resistances: cold 5, fire 5, electricity 5, physical 3 (except cold iron or good)"] },
+  { name:"Barbed Devil", level:8, type:"Fiend, Devil", ac:27, hp:130, init:16, perc:16, fort:17, ref:16, will:16, speed:"25 ft., fly 35 ft.", traits:["Fiend","Devil"],
+    actions:["Claw +20, 2d8+8 piercing + Barbed Grasp","Tail +20, 2d6+8 piercing","Barbed Ranged (◆◆, range 40 ft.): 2d8+8 piercing, DC 26 Ref or Immobilized"],
+    special:["Barbed Grasp: grabbed creature takes 1d6 piercing per action that moves","Constant fear aura DC 22 Will","Resistances: cold 10, physical 10 (except silver or good)","Immunities: fire"] },
+  { name:"Succubus", level:7, type:"Fiend, Demon", ac:24, hp:105, init:15, perc:15, fort:12, ref:15, will:17, speed:"25 ft., fly 35 ft.", traits:["Fiend","Demon"],
+    actions:["Claw +17, 2d6+6 slashing","Kiss of Death: Drained 1 + 5 negative HP per stage","Dominate (◆◆, visual): DC 25 Will, lasts 24 hours"],
+    special:["Telepathy 100 ft.","Shapechange: assume any humanoid form","Weaknesses: cold iron 5, good 5"] },
+  { name:"Gnoll Cultist", level:4, type:"Humanoid, Gnoll", ac:20, hp:55, init:9, perc:9, fort:11, ref:8, will:10, speed:"25 ft.", traits:["Humanoid"],
+    actions:["Flail +13, 1d6+5 bludgeoning (disarm, sweep, trip)","Divine Spell +11 DC 20: inflict wounds, fear, spiritual weapon"],
+    special:["Pack Attack","Divine spellcasting (Cleric 3rd level)"] },
+  { name:"Manticore", level:6, type:"Beast", ac:23, hp:95, init:13, perc:13, fort:15, ref:13, will:11, speed:"25 ft., fly 40 ft.", traits:["Beast","Large"],
+    actions:["Claw +16, 2d6+7 slashing (agile)","Jaws +16, 2d8+7 piercing","Spike Volley (◆◆, range 100 ft.): 4 spikes each +16, 1d8+5 piercing"],
+    special:["Spike Regrowth: regain 4 spikes per day","Darkvision"] },
+  { name:"Basilisk", level:5, type:"Beast", ac:20, hp:70, init:8, perc:8, fort:13, ref:9, will:9, speed:"20 ft.", traits:["Beast","Medium"],
+    actions:["Jaws +14, 1d8+7 piercing + Petrifying Venom","Claw +14, 1d6+7 slashing (agile)"],
+    special:["Petrifying Gaze (◆): 30-foot cone, DC 22 Fort — Slowed 1 (fail) / Petrified 1 minute (crit fail)","Petrifying Venom: DC 22 Fort or Slowed 1","Darkvision"] },
+  { name:"Harpy", level:3, type:"Humanoid", ac:18, hp:40, init:9, perc:9, fort:9, ref:11, will:8, speed:"20 ft., fly 60 ft.", traits:["Humanoid","Medium"],
+    actions:["Talon +11, 1d6+3 slashing (agile)","Club +9, 1d6+3 bludgeoning (thrown 10 ft.)","Captivating Song (◆◆): DC 19 Will in 300 ft. — Fascinated, must move toward harpy"],
+    special:["Captivating Song: Confused on crit fail, must Sustain each round"] },
+  { name:"Medusa", level:7, type:"Humanoid", ac:25, hp:115, init:15, perc:15, fort:13, ref:15, will:15, speed:"25 ft.", traits:["Humanoid","Medium"],
+    actions:["Shortbow +17 (range 60 ft.), 1d6+5 piercing + Serpent Arrows","Snake Hair +17, 1d4+5 piercing + Venom","Petrifying Gaze (◆): 30 ft., DC 23 Fort — Slowed 1 / Petrified (crit fail)"],
+    special:["Venom: DC 23 Fort, Slowed 1","Petrification: Slowed 3 then Petrified","Darkvision"] },
+  { name:"Hydra", level:6, type:"Beast", ac:22, hp:100, init:11, perc:11, fort:16, ref:11, will:11, speed:"30 ft., swim 30 ft.", traits:["Beast","Large"],
+    actions:["Jaws ×5 +16, 2d6+7 piercing (reach 10 ft.)","Storm of Jaws (◆◆◆): All heads attack one target"],
+    special:["Head Regrowth: severed heads regrow at end of turn unless cauterized (fire/acid)","Regeneration 15 (disabled by fire or acid)","Darkvision"] },
+  { name:"Werewolf", level:4, type:"Humanoid, Werecreature", ac:21, hp:55, init:11, perc:11, fort:12, ref:11, will:9, speed:"25 ft. (35 ft. wolf)", traits:["Humanoid","Beast"],
+    actions:["Jaws +14, 1d8+6 piercing + Curse","Claw +14, 1d6+6 slashing (agile)"],
+    special:["Lycanthropy Curse: DC 18 Fort","Change Shape (◆◆): human / hybrid / wolf","Weaknesses: silver 5","Scent 30 ft."] },
+  { name:"Animated Statue", level:3, type:"Construct", ac:20, hp:55, init:4, perc:4, fort:11, ref:6, will:7, speed:"20 ft.", traits:["Construct","Mindless","Large"],
+    actions:["Slam +12 (reach 10 ft.), 2d8+5 bludgeoning"],
+    special:["Immunities: mental, death, disease, healing, paralysis, poison","Resistances: physical 5 (except adamantine)"] },
+  { name:"Shadow", level:4, type:"Undead, Incorporeal", ac:19, hp:45, init:11, perc:11, fort:9, ref:13, will:11, speed:"fly 30 ft.", traits:["Undead","Incorporeal"],
+    actions:["Shadow Hand +13, 2d6+5 negative + Enfeebled 1","Strength Drain: 1 drain/round until removed"],
+    special:["Spawn: killed humanoid becomes shadow spawn","Sunlight destroys shadow","Immunities: death, disease, paralysis, poison, unconscious","Resistances: all physical 5 (incorporeal)"] },
+  { name:"Wight", level:6, type:"Undead", ac:24, hp:85, init:13, perc:13, fort:13, ref:11, will:15, speed:"25 ft.", traits:["Undead"],
+    actions:["Longsword +17, 2d8+7 slashing + Drain Life","Drain Life: target DC 22 Fort or Drained 1"],
+    special:["Spawn Wight: humanoid killed by Drain Life becomes wight","Immunities: death, disease, paralysis, poison, unconscious","Darkvision","Create Spawn (◆◆)"] },
+  { name:"Banshee", level:10, type:"Undead, Incorporeal", ac:28, hp:135, init:18, perc:18, fort:16, ref:20, will:22, speed:"fly 40 ft.", traits:["Undead","Incorporeal"],
+    actions:["Spectral Touch +22, 3d8+10 negative + Drained 1","Wail (◆◆◆, sonic): 60-foot emanation, DC 29 Fort — 10d10 sonic + Dying 1 (fail) / 10d10 sonic (success)"],
+    special:["Wail: usable once/round, immediately kills anyone at Dying 3 or higher","Immunities: death, disease, paralysis, poison, unconscious","Incorporeal: non-magical weapons miss 50%"] },
+  { name:"Griffon", level:4, type:"Beast", ac:21, hp:60, init:12, perc:12, fort:12, ref:11, will:9, speed:"25 ft., fly 60 ft.", traits:["Beast","Large"],
+    actions:["Beak +14, 2d6+6 piercing (deadly d10)","Talon +14, 1d8+6 slashing (agile) — Grab"],
+    special:["Darkvision","Scent 30 ft.","Flying Charge: charge and Strike in same movement"] },
+  { name:"Chimera", level:8, type:"Beast", ac:27, hp:130, init:14, perc:14, fort:18, ref:15, will:13, speed:"25 ft., fly 40 ft.", traits:["Beast","Large"],
+    actions:["Jaws (lion) +20, 2d10+8 piercing","Horns +20, 2d8+8 piercing","Fire Breath (◆◆): 30-foot cone, 9d6 fire, DC 26 Ref — recharge 1d4"],
+    special:["Three Heads: can make all three attacks in one round (2 actions each at MAP)"] },
+  { name:"Cyclops", level:8, type:"Giant", ac:27, hp:135, init:13, perc:13, fort:18, ref:14, will:15, speed:"30 ft.", traits:["Humanoid","Giant","Large"],
+    actions:["Falchion +20 (reach 10 ft.), 2d10+10 slashing (forceful, sweep)","Rock +17 (range 60 ft.), 2d8+10 bludgeoning"],
+    special:["Catch Rock","Visions of the Past (once/day): Recall Knowledge with +4 bonus"] },
+  { name:"Doppelganger", level:3, type:"Humanoid", ac:18, hp:40, init:11, perc:11, fort:8, ref:11, will:9, speed:"25 ft.", traits:["Humanoid","Medium"],
+    actions:["Fist +10, 1d6+3 bludgeoning","Mental Assault (◆◆): DC 20 Will, 4d6 mental (fail) / 2d6 (success)"],
+    special:["Change Shape (◆◆): any humanoid","Read Thoughts (◆◆): DC 20 Will","Darkvision"] },
+  { name:"Gelatinous Cube", level:3, type:"Ooze", ac:14, hp:50, init:1, perc:1, fort:12, ref:4, will:4, speed:"15 ft.", traits:["Ooze","Mindless","Large"],
+    actions:["Pseudopod +11, 1d6+4 acid + Paralysis","Engulf (◆◆): DC 21 Ref — 1d6 acid + Paralysis per round while engulfed"],
+    special:["Paralysis: DC 19 Fort or Paralyzed","Transparent: DC 20 Perception to spot","Immunities: acid, critical hits, mental, precision, unconscious"] },
+  { name:"Purple Worm", level:13, type:"Animal", ac:33, hp:230, init:19, perc:19, fort:26, ref:22, will:21, speed:"20 ft., burrow 20 ft., swim 20 ft.", traits:["Animal","Gargantuan"],
+    actions:["Jaws +27 (reach 10 ft.), 3d10+14 piercing — Swallow Whole","Stinger +27 (reach 10 ft.), 2d8+14 piercing + Venom","Swallow Whole: DC 31 Ref, creature inside takes 3d8 acid/round"],
+    special:["Venom: DC 30 Fort, Paralyzed","Tremorsense 60 ft.","Darkvision"] },
+  { name:"Roc", level:9, type:"Animal", ac:28, hp:160, init:17, perc:17, fort:20, ref:19, will:16, speed:"20 ft., fly 80 ft.", traits:["Animal","Gargantuan"],
+    actions:["Talon +22 (reach 10 ft.), 2d10+12 piercing — Grab","Beak +22 (reach 10 ft.), 2d12+12 piercing","Winds of Doom (◆◆◆): Powerful flap — DC 26 Ref, creatures within 30 ft. Pushed 20 ft. and knocked Prone"],
+    special:["Darkvision","Carry Prey: can fly while carrying Grabbed prey"] },
+  { name:"Minotaur", level:4, type:"Humanoid", ac:21, hp:65, init:11, perc:11, fort:12, ref:9, will:9, speed:"25 ft.", traits:["Humanoid","Large"],
+    actions:["Greataxe +14 (reach 10 ft.), 1d12+7 slashing (sweep)","Gore +14 (reach 10 ft.), 1d8+7 piercing","Trample (◆◆◆): 2d8+7 bludgeoning, DC 21 Ref for half"],
+    special:["Natural Cunning: never lost in mazes, immune to Maze spell","Darkvision"] },
+  { name:"Specter", level:7, type:"Undead, Incorporeal", ac:25, hp:90, init:15, perc:15, fort:12, ref:15, will:13, speed:"fly 40 ft.", traits:["Undead","Incorporeal"],
+    actions:["Ghostly Hand +17, 2d8+7 negative + Drained 1","Spectral Corruption (◆◆): DC 24 Will, Dominated 1 round (fail) / Stunned 1 (success)"],
+    special:["Sunlight Powerlessness","Create Specter: drained to 0 becomes specter in 1d4 rounds","Immunities: death, disease, paralysis, poison, unconscious","Incorporeal"] },
+  { name:"Dryad", level:4, type:"Fey, Plant", ac:21, hp:60, init:12, perc:12, fort:9, ref:13, will:13, speed:"25 ft.", traits:["Fey","Plant"],
+    actions:["Branch +13, 1d8+5 bludgeoning","Tree Meld (◆◆): enter and Hide inside any tree","Captivating Presence: DC 22 Will in 30 ft., Fascinated"],
+    special:["Spells (Primal 4th): charm, entangle, speak with plants, tree shape","Tree Bond: must remain within 300 ft. of bonded tree or gain Doomed 1/day","Low-light vision"] },
+  { name:"Pixie", level:4, type:"Fey", ac:20, hp:45, init:13, perc:13, fort:8, ref:12, will:11, speed:"20 ft., fly 40 ft.", traits:["Fey","Tiny"],
+    actions:["Pixie Bow +12 (range 60 ft.), 1d6+4 piercing + Special Arrow","Memory Loss Arrow: DC 19 Will, forget last 1 minute (fail) / 1 hour (crit fail)","Love Arrow: DC 19 Will, Fascinated by target"],
+    special:["Invisibility (constant)","Spells (Primal 3rd): faerie fire, sleep, dispel magic","Low-light vision"] },
+];
+
+// ── State ──
+let bestiarySource = 'all';
+let bestiarySearch = '';
+let selectedMonster = null;
+let customMonsters = [];
+let pf2eMonsters = [];      // loaded from pf2etools on demand
+let pf2eLoaded = false;
+let pf2eLoading = false;
+
+function loadCustomMonsters() {
+  try {
+    const stored = localStorage.getItem('samwise-custom-monsters');
+    customMonsters = stored ? JSON.parse(stored) : [];
+  } catch(e) { customMonsters = []; }
+}
+
+function saveCustomMonsters() {
+  try {
+    localStorage.setItem('samwise-custom-monsters', JSON.stringify(customMonsters));
+  } catch(e) {}
+}
+
+// ── pf2etools data mapping ──
+// pf2etools bestiary JSON lives on GitHub: https://github.com/TheGiddyLimit/Pf2eTools/tree/master/data/bestiary
+// Each file is a bestiary source (e.g. bestiary-crb.json, bestiary-b1.json, etc.)
+const PF2E_SOURCES = [
+  { key: 'bestiary-crb',  label: 'Core Rulebook'         },
+  { key: 'bestiary-b1',   label: 'Bestiary 1'            },
+  { key: 'bestiary-b2',   label: 'Bestiary 2'            },
+  { key: 'bestiary-b3',   label: 'Bestiary 3'            },
+  { key: 'bestiary-aoe1', label: 'Age of Ashes'          },
+  { key: 'bestiary-ec1',  label: 'Extinction Curse'      },
+  { key: 'bestiary-tv',   label: 'Troubles in Otari'     },
+  { key: 'bestiary-loag', label: 'Lost Omens: Ancestry'  },
+  { key: 'bestiary-som',  label: 'Secrets of Magic'      },
+  { key: 'bestiary-apg',  label: 'Advanced Players Guide'},
+];
+
+const PF2E_BASE = 'https://raw.githubusercontent.com/TheGiddyLimit/Pf2eTools/master/data/bestiary/';
+
+function parseSave(saveObj) {
+  if (!saveObj) return 0;
+  if (typeof saveObj === 'number') return saveObj;
+  // pf2etools saves look like { std: 12 } or just a number
+  if (typeof saveObj === 'object') return saveObj.std || saveObj.value || 0;
+  return parseInt(saveObj) || 0;
+}
+
+function parseHP(hpObj) {
+  if (!hpObj) return 10;
+  if (typeof hpObj === 'number') return hpObj;
+  if (Array.isArray(hpObj)) return hpObj[0]?.hp || 10;
+  if (typeof hpObj === 'object') return hpObj.hp || hpObj.std || 10;
+  return parseInt(hpObj) || 10;
+}
+
+function parseSpeed(speedObj) {
+  if (!speedObj) return '25 ft.';
+  if (typeof speedObj === 'string') return speedObj;
+  if (typeof speedObj === 'number') return speedObj + ' ft.';
+  if (typeof speedObj === 'object') {
+    const parts = [];
+    if (speedObj.walk) parts.push(speedObj.walk + ' ft.');
+    if (speedObj.fly)  parts.push('fly ' + speedObj.fly + ' ft.');
+    if (speedObj.swim) parts.push('swim ' + speedObj.swim + ' ft.');
+    if (speedObj.burrow) parts.push('burrow ' + speedObj.burrow + ' ft.');
+    if (speedObj.climb)  parts.push('climb ' + speedObj.climb + ' ft.');
+    return parts.join(', ') || '25 ft.';
+  }
+  return '25 ft.';
+}
+
+function parseTraits(creature) {
+  const traits = [];
+  if (creature.size) {
+    const sizeMap = { T:'Tiny', S:'Small', M:'Medium', L:'Large', H:'Huge', G:'Gargantuan' };
+    traits.push(sizeMap[creature.size] || creature.size);
+  }
+  if (creature.type) {
+    const t = creature.type;
+    if (typeof t === 'string') traits.push(t);
+    else if (t.type) traits.push(t.type);
+  }
+  if (creature.traits && Array.isArray(creature.traits)) {
+    creature.traits.forEach(tr => {
+      if (typeof tr === 'string') traits.push(tr);
+    });
+  }
+  return [...new Set(traits)]; // deduplicate
+}
+
+function parseActions(creature) {
+  const actions = [];
+  // Attacks
+  if (creature.attacks && Array.isArray(creature.attacks)) {
+    creature.attacks.forEach(atk => {
+      const name = atk.name || 'Strike';
+      const bonus = atk.attack !== undefined ? (atk.attack >= 0 ? '+' + atk.attack : '' + atk.attack) : '';
+      const dmg = atk.damage || '';
+      const traits = atk.traits ? ' (' + atk.traits.join(', ') + ')' : '';
+      actions.push(`${name} ${bonus}${dmg ? ', ' + dmg : ''}${traits}`);
+    });
+  }
+  // Spells (abbreviated)
+  if (creature.spellcasting && Array.isArray(creature.spellcasting)) {
+    creature.spellcasting.forEach(sc => {
+      actions.push(`${sc.name || 'Spellcasting'}: ${sc.type || ''} ${sc.tradition || ''}`);
+    });
+  }
+  return actions;
+}
+
+function parseSpecial(creature) {
+  const special = [];
+  if (creature.abilities && Array.isArray(creature.abilities)) {
+    creature.abilities.forEach(ab => {
+      if (typeof ab === 'string') special.push(ab);
+      else if (ab.name) {
+        special.push(ab.name + (ab.entries ? ': ' + (Array.isArray(ab.entries) ? ab.entries[0] : ab.entries).toString().substring(0, 120) : ''));
+      }
+    });
+  }
+  if (creature.immunities && creature.immunities.length > 0) {
+    special.push('Immunities: ' + creature.immunities.join(', '));
+  }
+  if (creature.resistances && creature.resistances.length > 0) {
+    const res = creature.resistances.map(r => typeof r === 'string' ? r : `${r.name || r.type} ${r.amount || ''}`).join(', ');
+    special.push('Resistances: ' + res);
+  }
+  if (creature.weaknesses && creature.weaknesses.length > 0) {
+    const wk = creature.weaknesses.map(w => typeof w === 'string' ? w : `${w.name || w.type} ${w.amount || ''}`).join(', ');
+    special.push('Weaknesses: ' + wk);
+  }
+  if (creature.senses) {
+    const senses = Array.isArray(creature.senses)
+      ? creature.senses.map(s => typeof s === 'string' ? s : s.name).join(', ')
+      : creature.senses;
+    if (senses) special.push('Senses: ' + senses);
+  }
+  return special;
+}
+
+function mapPf2eCreature(raw, sourceName) {
+  const saves = raw.savingThrows || raw.saves || {};
+  const hp = parseHP(raw.hp);
+  const level = parseInt(raw.level) || 0;
+  const traits = parseTraits(raw);
+  const typeStr = traits.filter(t => !['Tiny','Small','Medium','Large','Huge','Gargantuan'].includes(t)).join(', ') || 'Creature';
+
+  return {
+    name: raw.name,
+    level,
+    type: typeStr,
+    traits,
+    ac: typeof raw.ac === 'object' ? (raw.ac.std || raw.ac.value || 10) : (parseInt(raw.ac) || 10),
+    hp,
+    init: parseInt(raw.perception) || 0,   // PF2e initiative = Perception by default
+    perc: parseInt(raw.perception) || 0,
+    fort: parseSave(saves.fort || saves.fortitude),
+    ref:  parseSave(saves.ref  || saves.reflex),
+    will: parseSave(saves.will),
+    speed: parseSpeed(raw.speed),
+    actions: parseActions(raw),
+    special: parseSpecial(raw),
+    imm: '',
+    _src: 'pf2e',
+    _book: sourceName
+  };
+}
+
+async function loadPF2eData() {
+  if (pf2eLoaded || pf2eLoading) return;
+  pf2eLoading = true;
+
+  const bar = document.getElementById('pf2e-load-bar');
+  const msg = document.getElementById('pf2e-load-msg');
+  const prog = document.getElementById('pf2e-load-prog');
+  if (bar) bar.style.display = '';
+
+  let loaded = 0;
+  const results = [];
+
+  for (const src of PF2E_SOURCES) {
+    try {
+      if (msg) msg.textContent = `Loading ${src.label}…`;
+      const url = PF2E_BASE + src.key + '.json';
+      const resp = await fetch(url);
+      if (!resp.ok) { loaded++; continue; }
+      const data = await resp.json();
+      const creatures = data.monster || data.creature || [];
+      creatures.forEach(raw => {
+        try { results.push(mapPf2eCreature(raw, src.label)); } catch(e) {}
+      });
+    } catch(e) {
+      // Source unavailable (CORS or network) — skip silently
+    }
+    loaded++;
+    if (prog) prog.style.width = Math.round((loaded / PF2E_SOURCES.length) * 100) + '%';
+  }
+
+  pf2eMonsters = results;
+  pf2eLoaded = true;
+  pf2eLoading = false;
+  if (bar) bar.style.display = 'none';
+
+  const count = pf2eMonsters.length;
+  if (count > 0) {
+    toast(`PF2e data loaded: ${count} creatures`);
+  } else {
+    toast('PF2e data unavailable — internet required. OGL compendium still available.');
+    // Show a persistent note in the list
+    const list = document.getElementById('bestiary-list');
+    if (list) list.innerHTML = `<div style="padding:14px;color:var(--text-dim);font-size:13px;border:1px solid var(--border);background:var(--bg3)">
+      <div style="color:var(--amber);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;margin-bottom:6px">INTERNET REQUIRED</div>
+      PF2e full data is fetched from pf2etools on GitHub. Make sure Samwise is running via a local server (not opened as a file://) or is hosted online.
+      <div style="margin-top:8px">The OGL Compendium and My Monsters tabs work offline.</div>
+    </div>`;
+  }
+  renderBestiaryList();
+}
+
+function setBestiarySource(src, btn) {
+  bestiarySource = src;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Trigger lazy load when PF2e tab first selected
+  if ((src === 'pf2e' || src === 'all') && !pf2eLoaded && !pf2eLoading) {
+    loadPF2eData();
+    return; // renderBestiaryList called after load
+  }
+  renderBestiaryList();
+}
+
+function filterBestiary(val) {
+  bestiarySearch = val.toLowerCase();
+  renderBestiaryList();
+}
+
+function clearBestiarySearch() {
+  document.getElementById('bestiary-search').value = '';
+  bestiarySearch = '';
+  renderBestiaryList();
+}
+
+function getBestiaryPool() {
+  let pool = [];
+  if (bestiarySource === 'all' || bestiarySource === 'compendium') {
+    pool = pool.concat(OGL_BESTIARY.map(m => ({ ...m, _src: 'compendium' })));
+  }
+  if ((bestiarySource === 'all' || bestiarySource === 'pf2e') && pf2eLoaded) {
+    pool = pool.concat(pf2eMonsters);
+  }
+  if (bestiarySource === 'all' || bestiarySource === 'custom') {
+    pool = pool.concat(customMonsters.map(m => ({ ...m, _src: 'custom' })));
+  }
+  if (bestiarySearch) {
+    pool = pool.filter(m =>
+      m.name.toLowerCase().includes(bestiarySearch) ||
+      (m.type || '').toLowerCase().includes(bestiarySearch) ||
+      String(m.level).includes(bestiarySearch) ||
+      (m._book || '').toLowerCase().includes(bestiarySearch)
+    );
+  }
+  pool.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+  return pool;
+}
+
+function renderBestiaryList() {
+  const list = document.getElementById('bestiary-list');
+  if (!list) return;
+  const pool = getBestiaryPool();
+
+  if (pool.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px;font-style:italic">No creatures found</div>';
+    return;
+  }
+
+  list.innerHTML = pool.map((m, idx) => {
+    const isSelected = selectedMonster && selectedMonster.name === m.name && selectedMonster._src === m._src;
+    const isCustom = m._src === 'custom';
+    const isPf2e = m._src === 'pf2e';
+    const srcBadge = isPf2e
+      ? `<span style="font-size:9px;color:var(--blue-bright);opacity:0.7;white-space:nowrap">${m._book ? m._book.replace('Bestiary ','B') : 'PF2e'}</span>`
+      : (isCustom ? '<span style="font-size:9px;color:var(--cyan);opacity:0.8">Custom</span>' : '');
+    return `<div class="bestiary-list-item ${isSelected ? 'selected' : ''} ${isCustom ? 'custom-monster' : ''} ${isPf2e ? 'pf2e-monster' : ''}"
+      onclick="selectMonster(${idx})">
+      <div class="bli-name">${m.name}</div>
+      ${srcBadge}
+      <div class="bli-type">${(m.type || '').split(',')[0]}</div>
+      <div class="bli-level">Lvl ${m.level}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectMonster(idx) {
+  const pool = getBestiaryPool();
+  selectedMonster = pool[idx];
+  renderBestiaryList();
+  renderStatBlock(selectedMonster);
+}
+
+function fmtBonus(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  const n = parseInt(v);
+  return isNaN(n) ? '—' : (n >= 0 ? '+' + n : '' + n);
+}
+
+function renderStatBlock(m) {
+  const panel = document.getElementById('statblock-panel');
+  if (!m) { panel.innerHTML = '<div class="statblock-empty"><div class="statblock-empty-icon">📖</div><div>Select a creature</div></div>'; return; }
+
+  const traits = (m.traits || []).map(t => `<span class="sb-trait">${t}</span>`).join('');
+  const actions = (m.actions || []).map(a => `<div style="margin-bottom:4px">◆ <span class="sb-action-label">${a.split(',')[0]}</span><span class="sb-action-text">${a.includes(',') ? ', ' + a.split(',').slice(1).join(',') : ''}</span></div>`).join('');
+  const special = (m.special || []).map(s => `<div style="margin-bottom:3px">• ${s}</div>`).join('');
+  const isCustom = m._src === 'custom';
+
+  panel.innerHTML = `
+  <div class="statblock-header">
+    <div>
+      <div class="statblock-title">${m.name}</div>
+      <div class="statblock-subtitle">${m.type || ''}${m._book ? ' · ' + m._book : ''}${m.speed ? ' · Speed: ' + m.speed : ''}</div>
+      <div style="margin-top:6px">${traits}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div class="statblock-level-badge">Creature ${m.level}</div>
+      ${isCustom ? `<button class="btn btn-red" onclick="deleteCustomMonster(${m.id})" style="padding:3px 8px;font-size:10px">DELETE</button>` : ''}
+    </div>
+  </div>
+  <div class="statblock-body">
+    <div class="sb-stat-row">
+      <div class="sb-stat ac"><span class="sv">${m.ac}</span><span class="sl">AC</span></div>
+      <div class="sb-stat hp"><span class="sv">${m.hp}</span><span class="sl">HP</span></div>
+      <div class="sb-stat init"><span class="sv">${fmtBonus(m.init)}</span><span class="sl">Init</span></div>
+      <div class="sb-stat perc"><span class="sv">${fmtBonus(m.perc)}</span><span class="sl">Perc</span></div>
+      <div class="sb-stat fort"><span class="sv">${fmtBonus(m.fort)}</span><span class="sl">Fort</span></div>
+      <div class="sb-stat ref"><span class="sv">${fmtBonus(m.ref)}</span><span class="sl">Ref</span></div>
+      <div class="sb-stat will"><span class="sv">${fmtBonus(m.will)}</span><span class="sl">Will</span></div>
+    </div>
+    ${m.imm ? `<div class="sb-section"><div class="sb-section-label">Immunities / Resistances</div><div class="sb-section-body">${m.imm}</div></div>` : ''}
+    ${actions ? `<div class="sb-section"><div class="sb-section-label">Strikes &amp; Actions</div><div class="sb-section-body">${actions}</div></div>` : ''}
+    ${special ? `<div class="sb-section"><div class="sb-section-label">Special Abilities</div><div class="sb-section-body">${special}</div></div>` : ''}
+    ${m.notes ? `<div class="sb-section"><div class="sb-section-label">Notes</div><div class="sb-section-body" style="white-space:pre-wrap">${m.notes}</div></div>` : ''}
+  </div>
+  <div class="add-to-init-btn">
+    <button class="btn btn-green" onclick="addMonsterToInit()" style="padding:8px 20px;font-size:13px">⚔ ADD TO INITIATIVE</button>
+    <span style="font-size:12px;color:var(--text-dim);margin-left:8px">Rolls d20 ${fmtBonus(m.init)} and places in sorted order</span>
+  </div>`;
+}
+
+function addMonsterToInit() {
+  if (!selectedMonster) return;
+  const m = selectedMonster;
+  const initMod = parseInt(m.init) || 0;
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const initTotal = roll + initMod;
+
+  combatants.push({
+    id: Date.now() + Math.random(),
+    name: m.name,
+    init: initTotal,
+    hp: m.hp, maxhp: m.hp,
+    ac: m.ac,
+    perc: m.perc || 0,
+    type: 'enemy',
+    conditions: [], dead: false, persistent: [],
+    saves: { fort: m.fort || 0, ref: m.ref || 0, will: m.will || 0 },
+    _level: m.level,
+    _statblock: m
+  });
+
+  combatants.sort((a, b) => b.init - a.init);
+  renderCombat();
+  toast(`${m.name} added! Init: ${initTotal} (d20 rolled ${roll} ${initMod >= 0 ? '+' : ''}${initMod})`);
+
+  // Switch to combat tab
+  document.querySelectorAll('.main').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-combat').classList.add('active');
+  document.querySelectorAll('.tab-btn')[0].classList.add('active');
+}
+
+function openCustomMonsterForm() {
+  const form = document.getElementById('custom-monster-form');
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+  if (form.style.display !== 'none') {
+    ['cm-name','cm-type','cm-level','cm-ac','cm-hp','cm-init','cm-perc','cm-fort','cm-ref','cm-will','cm-imm','cm-speed','cm-actions','cm-notes']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    setTimeout(() => document.getElementById('cm-name').focus(), 50);
+  }
+}
+
+function closeCustomMonsterForm() {
+  document.getElementById('custom-monster-form').style.display = 'none';
+}
+
+function saveCustomMonster() {
+  const name = document.getElementById('cm-name').value.trim();
+  if (!name) { toast('Name is required'); return; }
+  const actionsRaw = document.getElementById('cm-actions').value.trim();
+  const specialRaw = document.getElementById('cm-notes').value.trim();
+
+  const monster = {
+    id: Date.now(),
+    name,
+    type:  document.getElementById('cm-type').value.trim() || 'Custom',
+    level: parseInt(document.getElementById('cm-level').value) || 0,
+    ac:    parseInt(document.getElementById('cm-ac').value)    || 10,
+    hp:    parseInt(document.getElementById('cm-hp').value)    || 10,
+    init:  parseInt(document.getElementById('cm-init').value)  || 0,
+    perc:  parseInt(document.getElementById('cm-perc').value)  || 0,
+    fort:  parseInt(document.getElementById('cm-fort').value)  || 0,
+    ref:   parseInt(document.getElementById('cm-ref').value)   || 0,
+    will:  parseInt(document.getElementById('cm-will').value)  || 0,
+    imm:   document.getElementById('cm-imm').value.trim(),
+    speed: document.getElementById('cm-speed').value.trim(),
+    traits: (document.getElementById('cm-type').value || '').split(',').map(t => t.trim()).filter(Boolean),
+    actions: actionsRaw ? actionsRaw.split('\n').filter(Boolean) : [],
+    special: specialRaw ? specialRaw.split('\n').filter(Boolean) : [],
+    _src: 'custom'
+  };
+
+  customMonsters.push(monster);
+  saveCustomMonsters();
+  closeCustomMonsterForm();
+  renderBestiaryList();
+  toast('Monster saved: ' + name);
+}
+
+function deleteCustomMonster(id) {
+  if (!confirm('Delete this custom monster?')) return;
+  customMonsters = customMonsters.filter(m => m.id !== id);
+  saveCustomMonsters();
+  selectedMonster = null;
+  renderBestiaryList();
+  document.getElementById('statblock-panel').innerHTML = '<div class="statblock-empty"><div class="statblock-empty-icon">📖</div><div>Select a creature from the list</div></div>';
+  toast('Monster deleted');
+}
+
+// ===================== API KEY =====================
+function getAPIKey() {
+  try { return localStorage.getItem('samwise-api-key') || ''; } catch(e) { return ''; }
+}
+
+function openAPISettings() {
+  const key = getAPIKey();
+  const input = document.getElementById('api-key-input');
+  if (input) input.value = key ? key.substring(0, 12) + '...' + key.slice(-4) : '';
+  setAPIKeyStatus('', '');
+  document.getElementById('api-settings-overlay').classList.add('open');
+}
+
+function closeAPISettings() {
+  document.getElementById('api-settings-overlay').classList.remove('open');
+}
+
+function saveAPIKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val || val.includes('...')) { setAPIKeyStatus('error', 'Please paste your full API key'); return; }
+  if (!val.startsWith('sk-ant-')) { setAPIKeyStatus('error', 'Key should start with sk-ant-'); return; }
+  try {
+    localStorage.setItem('samwise-api-key', val);
+    setAPIKeyStatus('success', '✓ Key saved successfully');
+    toast('API key saved');
+    setTimeout(closeAPISettings, 1200);
+  } catch(e) {
+    setAPIKeyStatus('error', 'Could not save key to localStorage');
+  }
+}
+
+function clearAPIKey() {
+  try { localStorage.removeItem('samwise-api-key'); } catch(e) {}
+  document.getElementById('api-key-input').value = '';
+  setAPIKeyStatus('success', 'Key cleared');
+  toast('API key removed');
+}
+
+function setAPIKeyStatus(type, msg) {
+  const el = document.getElementById('api-key-status');
+  if (!el) return;
+  if (!msg) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.borderColor = type === 'error' ? 'var(--red)' : 'var(--green)';
+  el.style.color       = type === 'error' ? 'var(--red-bright)' : 'var(--green-bright)';
+  el.style.background  = type === 'error' ? 'rgba(192,57,43,0.1)' : 'rgba(39,174,96,0.1)';
+  el.textContent = msg;
+}
+
+// ===================== PDF IMPORT =====================
+let currentPDFFile = null;
+let pdfScanResults = [];
+
+function openPDFImport() {
+  const hasKey = !!getAPIKey();
+  const warning = document.getElementById('pdf-no-key-warning');
+  if (warning) warning.style.display = hasKey ? 'none' : '';
+  document.getElementById('pdf-scan-btn').disabled = !currentPDFFile || !hasKey;
+  document.getElementById('pdf-results').style.display = 'none';
+  setPDFStatus('', '');
+  document.getElementById('pdf-import-overlay').classList.add('open');
+}
+
+function closePDFImport() {
+  document.getElementById('pdf-import-overlay').classList.remove('open');
+}
+
+function handlePDFDrop(e) {
+  e.preventDefault();
+  document.getElementById('pdf-drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    handlePDFFile(file);
+  } else {
+    setPDFStatus('error', 'Please drop a PDF file');
+  }
+}
+
+function handlePDFFile(file) {
+  if (!file) return;
+  currentPDFFile = file;
+  const info = document.getElementById('pdf-file-info');
+  const name = document.getElementById('pdf-file-name');
+  if (info) { info.style.display = 'flex'; }
+  if (name) name.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)';
+  const hasKey = !!getAPIKey();
+  document.getElementById('pdf-scan-btn').disabled = !hasKey;
+  if (!hasKey) {
+    setPDFStatus('error', 'Add your Anthropic API key via ⚙ API to enable scanning');
+  } else {
+    setPDFStatus('', '');
+  }
+}
+
+function clearPDFFile() {
+  currentPDFFile = null;
+  document.getElementById('pdf-file-input').value = '';
+  const info = document.getElementById('pdf-file-info');
+  if (info) info.style.display = 'none';
+  document.getElementById('pdf-scan-btn').disabled = true;
+  setPDFStatus('', '');
+  document.getElementById('pdf-results').style.display = 'none';
+}
+
+function setPDFStatus(type, msg) {
+  const el = document.getElementById('pdf-status');
+  if (!el) return;
+  if (!msg) { el.classList.remove('visible','error','success','loading'); return; }
+  el.classList.add('visible');
+  el.classList.remove('error','success','loading');
+  el.classList.add(type || 'loading');
+  el.innerHTML = msg;
+}
+
+async function scanPDF() {
+  if (!currentPDFFile) return;
+  const apiKey = getAPIKey();
+  if (!apiKey) { setPDFStatus('error', 'No API key set — click ⚙ API to add one'); return; }
+
+  const startPage = parseInt(document.getElementById('pdf-page-start').value) || 1;
+  const endPage   = parseInt(document.getElementById('pdf-page-end').value)   || 5;
+  const system    = document.getElementById('pdf-system').value;
+  const systemLabel = system === 'sf2e' ? 'Starfinder 2e' : 'Pathfinder 2e';
+
+  const pageCount = endPage - startPage + 1;
+  if (pageCount > 20) {
+    setPDFStatus('error', 'Please scan 20 pages or fewer at a time to keep costs low');
+    return;
+  }
+
+  setPDFStatus('loading', '⏳ Reading PDF and extracting pages ' + startPage + '–' + endPage + '…');
+  document.getElementById('pdf-scan-btn').disabled = true;
+  document.getElementById('pdf-results').style.display = 'none';
+  pdfScanResults = [];
+
+  try {
+    // Convert PDF to base64
+    const base64 = await fileToBase64(currentPDFFile);
+
+    setPDFStatus('loading', '🤖 Sending to Claude AI for stat block extraction…');
+
+    const prompt = `You are parsing a ${systemLabel} PDF. Extract ALL creature/monster stat blocks from pages ${startPage} to ${endPage} of this PDF.
+
+For each creature found, return a JSON array. Each object must have exactly these fields:
+{
+  "name": string,
+  "level": number,
+  "type": string (creature type/traits like "Undead, Incorporeal" or "Animal"),
+  "ac": number,
+  "hp": number,
+  "init": number (perception modifier, used for initiative),
+  "perc": number (perception modifier),
+  "fort": number (fortitude save modifier),
+  "ref": number (reflex save modifier),
+  "will": number (will save modifier),
+  "speed": string (e.g. "25 ft., fly 40 ft."),
+  "traits": array of strings,
+  "imm": string (immunities and resistances, empty string if none),
+  "actions": array of strings (each Strike or Action on one line, e.g. "Jaws +14, 2d8+6 piercing"),
+  "special": array of strings (each special ability on one line),
+  "notes": string (any other relevant info)
+}
+
+Return ONLY a valid JSON array with no markdown, no code fences, no explanation. If no stat blocks are found, return [].`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: base64
+              }
+            },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const msg = err.error?.message || ('HTTP ' + response.status);
+      if (response.status === 401) {
+        setPDFStatus('error', '❌ Invalid API key. Check your key in ⚙ API Settings.');
+      } else if (response.status === 429) {
+        setPDFStatus('error', '❌ Rate limit hit — wait a moment and try again.');
+      } else {
+        setPDFStatus('error', '❌ API error: ' + msg);
+      }
+      document.getElementById('pdf-scan-btn').disabled = false;
+      return;
+    }
+
+    const data = await response.json();
+    const rawText = data.content?.map(b => b.text || '').join('').trim();
+
+    // Parse JSON — strip any accidental markdown fences
+    let parsed;
+    try {
+      const clean = rawText.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+      parsed = JSON.parse(clean);
+    } catch(e) {
+      setPDFStatus('error', '❌ Could not parse response. Try a smaller page range, or the pages may not contain stat blocks.');
+      console.error('Raw response:', rawText);
+      document.getElementById('pdf-scan-btn').disabled = false;
+      return;
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      setPDFStatus('error', '⚠ No stat blocks found on pages ' + startPage + '–' + endPage + '. Try adjusting the page range.');
+      document.getElementById('pdf-scan-btn').disabled = false;
+      return;
+    }
+
+    pdfScanResults = parsed.map(m => ({ ...m, id: Date.now() + Math.random(), _src: 'custom' }));
+    renderPDFResults();
+    setPDFStatus('success', '✓ Found ' + pdfScanResults.length + ' creature' + (pdfScanResults.length !== 1 ? 's' : '') + ' on pages ' + startPage + '–' + endPage);
+
+  } catch(e) {
+    setPDFStatus('error', '❌ Error: ' + e.message);
+    console.error(e);
+  }
+
+  document.getElementById('pdf-scan-btn').disabled = false;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderPDFResults() {
+  const container = document.getElementById('pdf-monster-list');
+  const resultsDiv = document.getElementById('pdf-results');
+  if (!container || !resultsDiv) return;
+  resultsDiv.style.display = '';
+
+  container.innerHTML = pdfScanResults.map((m, idx) => `
+    <div class="pdf-monster-preview" id="pdf-prev-${idx}">
+      <div class="pm-name">
+        <span>${m.name} <span style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace">Lvl ${m.level} · ${m.type || 'Creature'}</span></span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-green" onclick="saveSinglePDFMonster(${idx})" style="padding:2px 10px;font-size:11px">✓ SAVE</button>
+          <button class="icon-btn danger" onclick="removePDFResult(${idx})" style="font-size:10px">✕</button>
+        </div>
+      </div>
+      <div class="pm-stats">
+        <span class="pm-stat" style="color:var(--blue-bright)">AC ${m.ac}</span>
+        <span class="pm-stat" style="color:var(--green-bright)">HP ${m.hp}</span>
+        <span class="pm-stat" style="color:var(--amber)">Perc +${m.perc}</span>
+        <span class="pm-stat" style="color:#e67e22">Fort +${m.fort}</span>
+        <span class="pm-stat" style="color:var(--cyan)">Ref +${m.ref}</span>
+        <span class="pm-stat" style="color:#9b59b6">Will +${m.will}</span>
+        ${m.speed ? `<span class="pm-stat">${m.speed}</span>` : ''}
+      </div>
+      ${m.actions && m.actions.length ? `<div style="margin-top:5px;font-size:11px;color:var(--text-dim)">${m.actions.slice(0,2).join(' · ')}${m.actions.length > 2 ? ' …' : ''}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function saveSinglePDFMonster(idx) {
+  const m = pdfScanResults[idx];
+  if (!m) return;
+  m.id = Date.now() + Math.random();
+  customMonsters.push(m);
+  saveCustomMonsters();
+  const el = document.getElementById('pdf-prev-' + idx);
+  if (el) {
+    el.style.borderLeftColor = 'var(--green)';
+    el.style.opacity = '0.5';
+    el.querySelector('.pm-name').insertAdjacentHTML('beforeend', '<span style="color:var(--green);font-size:11px;margin-left:8px">✓ Saved</span>');
+  }
+  renderBestiaryList();
+  toast('Saved: ' + m.name);
+}
+
+function saveAllPDFMonsters() {
+  let count = 0;
+  pdfScanResults.forEach((m, idx) => {
+    if (!customMonsters.find(c => c.name === m.name)) {
+      customMonsters.push({ ...m, id: Date.now() + Math.random() });
+      count++;
+    }
+  });
+  saveCustomMonsters();
+  renderBestiaryList();
+  toast(count + ' monsters saved to My Monsters');
+  setPDFStatus('success', '✓ ' + count + ' creatures saved to My Monsters');
+  setTimeout(() => {
+    document.getElementById('pdf-results').style.display = 'none';
+    closePDFImport();
+  }, 1500);
+}
+
+function removePDFResult(idx) {
+  pdfScanResults.splice(idx, 1);
+  if (pdfScanResults.length === 0) {
+    document.getElementById('pdf-results').style.display = 'none';
+  } else {
+    renderPDFResults();
+  }
+}
+
+// ===================== TOAST =====================
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===================== INIT =====================
+renderCombat();
+renderParty();
+renderConditions();
+buildDCTable();
+updateXP();
+loadMusicPlaylists();
+loadCustomMonsters();
+renderBestiaryList();
+</script>
+</body>
+</html>
