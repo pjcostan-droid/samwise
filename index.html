@@ -2816,13 +2816,42 @@ function updateXP() {
 }
 
 // ===================== PARTY =====================
-let partyMembers = [
+const DEFAULT_PARTY = [
   { id: 1, name: 'Aetherion', cls: 'Wizard 5', hp: 45, maxhp: 45, focus: 3, maxFocus: 3, hero: 1, maxHero: 3, ac: 17, perc: 11, saves: { fort: 8, ref: 9, will: 12 } },
   { id: 2, name: 'Graxis', cls: 'Fighter 5', hp: 72, maxhp: 72, focus: 0, maxFocus: 0, hero: 2, maxHero: 3, ac: 24, perc: 12, saves: { fort: 13, ref: 11, will: 9 } },
   { id: 3, name: 'Lyra Dawnwhisper', cls: 'Cleric 5', hp: 55, maxhp: 55, focus: 3, maxFocus: 3, hero: 1, maxHero: 3, ac: 19, perc: 14, saves: { fort: 10, ref: 9, will: 13 } },
 ];
 
-let nextPCId = 4;
+let partyMembers = [];
+let nextPCId = 1;
+
+function saveParty() {
+  try {
+    localStorage.setItem('samwise-party', JSON.stringify(partyMembers));
+    localStorage.setItem('samwise-next-pc-id', String(nextPCId));
+  } catch(e) { console.warn('Could not save party:', e); }
+}
+
+function loadParty() {
+  try {
+    const stored = localStorage.getItem('samwise-party');
+    if (stored) {
+      partyMembers = JSON.parse(stored);
+      nextPCId = parseInt(localStorage.getItem('samwise-next-pc-id') || '1') || 1;
+      // Make sure nextPCId is always higher than any existing id
+      const maxId = partyMembers.reduce((m, p) => Math.max(m, p.id || 0), 0);
+      if (nextPCId <= maxId) nextPCId = maxId + 1;
+    } else {
+      // First ever load — use defaults
+      partyMembers = JSON.parse(JSON.stringify(DEFAULT_PARTY));
+      nextPCId = 4;
+      saveParty();
+    }
+  } catch(e) {
+    partyMembers = JSON.parse(JSON.stringify(DEFAULT_PARTY));
+    nextPCId = 4;
+  }
+}
 
 function addPC() {
   // Clear fields and open modal
@@ -2858,6 +2887,7 @@ function confirmAddPC() {
     hero, maxHero: 3, ac, perc, saves: { fort, ref, will }
   });
   closeAddPCModal();
+  saveParty();
   renderParty();
   renderCombat();
   toast('Added: ' + name);
@@ -2943,6 +2973,7 @@ function updatePCStat(id, stat, val) {
   if (!pc) return;
   if (stat === 'name' || stat === 'cls') { pc[stat] = val; }
   else { pc[stat] = parseInt(val) || 0; }
+  saveParty();
 }
 
 function updatePCStatAndRefresh(id, stat, val) {
@@ -2965,18 +2996,21 @@ function updatePCSave(id, save, val) {
   // Sync to combat tracker
   const c = combatants.find(x => x.pcId === id);
   if (c) { if (!c.saves) c.saves = {}; c.saves[save] = pc.saves[save]; }
+  saveParty();
 }
 
 function toggleHero(pcId, idx) {
   const pc = partyMembers.find(p => p.id === pcId);
   if (!pc) return;
   pc.hero = (pc.hero === idx + 1) ? idx : idx + 1;
+  saveParty();
   renderParty();
 }
 
 function removePC(id) {
   partyMembers = partyMembers.filter(p => p.id !== id);
   combatants = combatants.filter(c => c.type !== 'pc' || partyMembers.find(p => p.id === c.pcId));
+  saveParty();
   renderParty();
   renderCombat();
 }
@@ -4266,6 +4300,7 @@ function toast(msg) {
 }
 
 // ===================== INIT =====================
+loadParty();
 renderCombat();
 renderParty();
 renderConditions();
